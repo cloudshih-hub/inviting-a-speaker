@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>演講籌備智能SOP助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+        /* 保持tailwind的focus-visible樣式 */
+        :focus-visible {
+            outline: 2px solid theme('colors.blue.500');
+            outline-offset: 2px;
+        }
+        /* 自定義stepper的連線 */
+        .stepper-item:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 1.25rem; /* 10px / 4 = 2.5 (translate-x-1/2 of 20px) */
+            top: 2.5rem; /* 40px */
+            width: 2px;
+            height: calc(100% - 2.5rem);
+            background-color: theme('colors.gray.300');
+            z-index: -1;
+        }
+        .stepper-item.completed::after {
+            background-color: theme('colors.blue.600');
+        }
+        /* 隱藏的textarea用於複製 */
+        #clipboard-temp {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-8">
+            <!-- 標題與 LOGO 圖片 -->
+            <div class="flex items-center mb-2">
+                <img src="https://flipedu-cdn.parenting.com.tw/upload/jpCIZTR39ISqdNxEaVwfFBK17S3jxTqr5L6vWVTb.jpg" 
+                     alt="" 
+                     class="w-10 h-10 rounded-full mr-3 object-cover shadow-md"
+                     onerror="this.onerror=null;this.src='https://placehold.co/40x40/3B82F6/FFFFFF?text=SOP'">
+                <h1 class="text-3xl font-bold text-gray-900">演講籌備智能SOP助手</h1>
+            </div>
+            <p class="text-lg text-gray-600 mt-2">結合SOP檢核與範本產生器，讓演講籌備工作萬無一失。</p>
+        </header>
+
+        <div class="md:flex md:space-x-8">
+            <!-- 
+                ============================================================
+                左側：SOP 時間軸
+                ============================================================
+            -->
+            <nav class="md:w-1/3 lg:w-1/4 mb-8 md:mb-0">
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-xl font-semibold mb-6">SOP 進度</h2>
+                    <ol id="stepper-container" class="relative space-y-6">
+                        <!-- JS 動態載入步驟 -->
+                    </ol>
+                </div>
+            </nav>
+
+            <!-- 
+                ============================================================
+                右側：步驟詳情 & 範本產生器
+                ============================================================
+            -->
+            <main id="step-content-wrapper" class="md:w-2/3 lg:w-3/4">
+                <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg min-h-[500px]">
+                    
+                    <!-- 步驟標題與描述 -->
+                    <div class="border-b border-gray-200 pb-4 mb-6">
+                        <h2 id="step-title" class="text-2xl font-bold text-blue-700"></h2>
+                        <p id="step-description" class="text-gray-600 mt-2"></p>
+                    </div>
+
+                    <!-- 智能工具區域 (表單或檢核表) -->
+                    <div id="tool-area">
+                        <!-- JS 動態載入表單或檢核表 -->
+                    </div>
+
+                    <!-- 產出範本區域 (預設隱藏) -->
+                    <div id="template-output-area" class="hidden mt-6">
+                        <label for="template-output" class="block text-sm font-semibold text-gray-700 mb-2">產出範本（已自動複製到剪貼簿）</label>
+                        <textarea id="template-output" rows="10" class="w-full p-3 bg-gray-50 rounded-md border border-gray-300 font-mono text-sm" readonly></textarea>
+                        <button id="copy-button" class="py-2 px-4 rounded-md shadow-sm text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mt-2">
+                            再次複製
+                        </button>
+                    </div>
+
+                    <!-- 下一步提醒 -->
+                    <div id="next-step-reminder-box" class="mt-8 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-md">
+                        <h4 class="font-semibold text-blue-800">下一步提醒</h4>
+                        <p id="next-step-reminder" class="text-blue-700 text-sm mt-1"></p>
+                    </div>
+
+                    <!-- 動作按鈕 -->
+                    <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end space-x-3">
+                        <button id="generate-btn" class="py-2 px-5 rounded-md shadow-sm text-sm font-medium bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 hidden">
+                            生成範本
+                        </button>
+                        <button id="complete-btn" class="py-2 px-5 rounded-md shadow-sm text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            完成本階段
+                        </button>
+                    </div>
+
+                </div>
+            </main>
+        </div>
+
+        <!-- 
+            ============================================================
+            延伸閱讀文章區塊 (新增)
+            ============================================================
+        -->
+        <div class="mt-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6 border-b border-gray-300 pb-2">延伸閱讀文章，了解更多細緻眉眉角角</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Article 1 -->
+                <a href="https://flipedu.parenting.com.tw/article/010311" target="_blank" class="block bg-white p-5 rounded-xl shadow-lg hover:shadow-xl transition duration-300 group">
+                    <h3 class="text-lg font-semibold text-blue-700 group-hover:text-blue-900 transition line-clamp-2">如何避免演講邀約地雷？常見狀況與講師SOP</h3>
+                    <p class="text-sm text-gray-500 mt-2">作者：羊羊老師（楊元安）</p>
+                    <span class="mt-3 inline-block text-xs text-blue-500 group-hover:underline">閱讀全文 &rarr;</span>
+                </a>
+                
+                <!-- Article 2 -->
+                <a href="https://flipedu.parenting.com.tw/article/009122" target="_blank" class="block bg-white p-5 rounded-xl shadow-lg hover:shadow-xl transition duration-300 group">
+                    <h3 class="text-lg font-semibold text-blue-700 group-hover:text-blue-900 transition line-clamp-2">講座邀約的行政眉角！講師和承辦人都皆大歡喜</h3>
+                    <p class="text-sm text-gray-500 mt-2">作者：蔡思怡</p>
+                    <span class="mt-3 inline-block text-xs text-blue-500 group-hover:underline">閱讀全文 &rarr;</span>
+                </a>
+                <!-- Article 3 -->
+                <a href="https://flipedu.parenting.com.tw/article/006359" target="_blank" class="block bg-white p-5 rounded-xl shadow-lg hover:shadow-xl transition duration-300 group">
+                    <h3 class="text-lg font-semibold text-blue-700 group-hover:text-blue-900 transition line-clamp-2">辦好一場演講也是素養：辦演講不能忽略的12個重點</h3>
+                    <p class="text-sm text-gray-500 mt-2">作者：蔡淇華</p>
+                    <span class="mt-3 inline-block text-xs text-blue-500 group-hover:underline">閱讀全文 &rarr;</span>
+                </a>
+            </div>
+        </div>
+
+    </div> <!-- 結束 max-w-7xl mx-auto -->
+
+    <!-- 複製成功提示 -->
+    <div id="copy-success-msg" class="fixed top-5 right-5 bg-green-600 text-white py-3 px-5 rounded-lg shadow-xl transition-opacity duration-300 opacity-0" role="alert">
+        已成功複製到剪貼簿！
+    </div>
+
+    <!-- 用於複製的隱藏textarea -->
+    <textarea id="clipboard-temp"></textarea>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // =================================================================
+            // 核心資料：SOP 步驟
+            // =================================================================
+            const steps = [
+                {
+                    id: 1,
+                    title: "撰寫熱情邀約信",
+                    status: 'active', // 'pending', 'active', 'completed'
+                    description: "好的開始是成功的一半。展現您的熱情與誠意，讓講師感受到「非您不可」的理由。",
+                    tool_type: 'form', // 'form' or 'checklist'
+                    form_fields: [
+                        { label: '講者姓名', id: 'speaker_name', type: 'text', placeholder: '例如：某某某 老師' },
+                        { label: '我方單位', id: 'unit_name', type: 'text', placeholder: '例如：XX國中 輔導室' },
+                        { label: '為何非您不可', id: 'why_you', type: 'textarea', placeholder: '請說明貴單位的困境、聽眾的樣貌... (文章一強調的「動心起念」)' },
+                        { label: '聽眾輪廓', id: 'audience', type: 'text', placeholder: '例如：國一學生，約300人' },
+                        { label: '建議演講主題', id: 'topic', type: 'text', placeholder: '例如：關於「閱讀與寫作」' },
+                        { label: '建議日期 (提供2-3個)', id: 'dates', type: 'text', placeholder: '例如：11/20(三) 10:00-12:00, 11/27(三) 10:00-12:00' },
+                        { label: '演講長度', id: 'duration', type: 'text', placeholder: '例如：2小時 (含Q&A)' },
+                        { label: '鐘點費', id: 'fee', type: 'text', placeholder: '例如：$2,000 / 小時' },
+                        { label: '交通費', id: 'travel_fee', type: 'text', placeholder: '例如：實報實銷 (高鐵、計程車)' },
+                        { label: '您的聯繫方式', id: 'contact_info', type: 'text', placeholder: '例如：行政老師 0912-345-678 / (04)1234-5678 #123' }
+                    ],
+                    template_function: (data) => `
+${data.speaker_name} 您好：
+
+我們是 ${data.unit_name}。
+
+冒昧打擾，我們長期拜讀您的分享，對於您在「${data.topic}」領域的洞見深受啟發。
+
+【我們的動心起念】
+${data.why_you}
+
+我們深信，以您豐富的經驗與觀點，必定能帶給我們的 ${data.audience} 莫大的啟發與幫助。
+
+因此，想誠摯邀請您擔任我們演講活動的分享嘉賓。
+
+【活動資訊】
+・演講主題：${data.topic} (或由老師您建議)
+・演講對象：${data.audience}
+・演講長度：${data.duration}
+・演講地點：(線上 / 或 實體地點)
+
+【建議時間】
+以下是我們建議的幾個時段，不知您是否方便？
+・${data.dates.split(',')[0] || '日期一'}
+・${data.dates.split(',')[1] || '日期二'}
+・${data.dates.split(',')[2] || '日期三'}
+（若以上時間皆不便，也懇請老師提供您方便的時段）
+
+【酬勞】
+・鐘點費：${data.fee}
+・交通費：${data.travel_fee}
+
+期待能有這個榮幸邀請到您，若您有任何問題，都歡迎隨時與我聯繫。
+
+${data.unit_name}
+${data.contact_info} 敬上
+`,
+                    next_step_reminder: "信件寄出後，等待講師回覆。確認後，請點選「完成本階段」，進入下一步驟。"
+                },
+                {
+                    id: 2,
+                    title: "講師確認後 (前 2-3 週)",
+                    status: 'pending',
+                    description: "講師已同意！現在我們需要敲定細節、索取資料，並展現行政專業度。",
+                    tool_type: 'form', // Changed
+                    form_fields: [ // Added
+                        { label: '講者姓名', id: 'speaker_name', type: 'text', placeholder: '例如：某某某 老師' },
+                        { label: '演講日期與時間', id: 'event_datetime', type: 'text', placeholder: '11/20(三) 10:00-12:00' },
+                        { label: '演講地點', id: 'event_location', type: 'text', placeholder: '本校大禮堂' },
+                        { label: '演講主題', id: 'topic', type: 'text', placeholder: '關於「閱讀與寫作」' },
+                        { label: '聽眾組成與目標', id: 'audience_goal', type: 'textarea', placeholder: '例如：高一學生約300人，希望透過演講... ' },
+                        { label: '您的姓名與手機', id: 'contact_info', type: 'text', placeholder: '行政 0912-345-678' }
+                    ],
+                    template_function: (data) => `// Added
+${data.speaker_name} 您好：
+
+再次感謝您先前答應我們的邀約！
+
+為讓我們後續行政流程更順暢，並提前準備好相關設備與文宣，想與您確認以下幾點資訊：
+
+1.  **活動確認**：
+    ・日期時間：${data.event_datetime}
+    ・演講地點：${data.event_location}
+    ・演講主題：${data.topic}
+
+2.  **聽眾與目標**：
+    ・${data.audience_goal}
+
+3.  **需請您協助提供**：
+    ・**公文需求**：請問您是否需要我們發送「公文」至您的服務單位？ 
+    ・**文宣資料**：是否方便提供您的「照片」與「簡介文字」，以利我們製作海報？
+    ・**簡報檔案**：請問您大約何時方便提供演講簡報檔？我們想提早測試影片、聲音與版本相容性。
+    ・**交通方式**：請問您當天預計的交通方式？
+        (若自行開車，需請您提供車牌號碼 ____，以利校門口警衛室登錄)
+        (若搭乘大眾運輸，我們將與您確認抵達時間與接送點)
+
+不好意思問題有點多，再次感謝您的協助！
+若有任何問題，歡迎隨時聯繫我。
+
+${data.contact_info} 敬上
+`,
+                    checklist_items: [
+                        { text: '【重要】主動詢問講者是否需要「發公文」 ', done: false },
+                        { text: '索取講師「照片」與「簡介」(用於製作海報/文宣)', done: false },
+                        { text: '索取「演講簡報檔」(提早測試版本、影片、字型)', done: false },
+                        { text: '確認最終交通方式 (高鐵/開車)與抵達時間，若為開車記得索取車牌號碼', done: false },
+                        { text: '向講者說明「聽眾組成」與「本次預期目標」 ', done: false }
+                    ],
+                    next_step_reminder: "信件寄出並收到講師回覆後，請完成上方檢核。都拿到資料後，就可以點選「完成本階段」，準備場地和文宣了。"
+                },
+                {
+                    id: 3,
+                    title: "行前準備 (前 1 週)",
+                    status: 'pending',
+                    description: "演講即將到來，開始進行場地和設備的最終測試，並發送第一次行前通知。",
+                    tool_type: 'form',
+                    form_fields: [
+                        { label: '講者姓名', id: 'speaker_name', type: 'text', placeholder: '某某某老師' },
+                        { label: '演講日期與時間', id: 'event_datetime', type: 'text', placeholder: '11/20(三) 10:00-12:00' },
+                        { label: '演講地點', id: 'event_location', type: 'text', placeholder: '本校大禮堂' },
+                        { label: '您的姓名與手機', id: 'contact_info', type: 'text', placeholder: '行政 0912-345-678' }
+                    ],
+                    template_function: (data) => `
+【第一次行前通知】
+
+${data.speaker_name} 您好：
+
+提醒您 ${data.event_datetime} 於 ${data.event_location} 的演講。
+目前海報文宣均已發出，師生們都非常期待！
+
+附件為當日流程表，再請您撥冗參閱。
+若有任何需要我們協助的地方，請隨時聯繫我。
+
+辛苦您了，期待當天的分享！
+
+${data.contact_info} 敬上
+`,
+                    checklist_items: [
+                        { text: '【設備】測試簡報檔 (版本、影片、聲音)', done: false },
+                        { text: '【設備】確認麥克風 (含備用電池)', done: false },
+                        { text: '【設備】準備轉接頭 (for Mac)', done: false },
+                        { text: '【接待】製作「安心交通包」(含地圖/接送點/聯繫人)', done: false },
+                        { text: '【暖場】安排「暗樁」準備Q&A問題 ', done: false }
+                    ],
+                    next_step_reminder: "別忘了前一天要發送最終提醒信！完成檢核並寄出通知後，請點選「完成本階段」。"
+                },
+                {
+                    id: 4,
+                    title: "最終提醒 (前 1-2 天)",
+                    status: 'pending',
+                    description: "發送最後一次的提醒信，附上「安心交通包」，讓講者安心。",
+                    tool_type: 'form',
+                    form_fields: [
+                        { label: '講者姓名', id: 'speaker_name', type: 'text', placeholder: '某某某老師' },
+                        { label: '演講日期與時間', id: 'event_datetime', type: 'text', placeholder: '11/20(三) 10:00-12:00' },
+                        { label: '您的姓名與手機', id: 'contact_info', type: 'text', placeholder: '行政 0912-345-678' },
+                        { label: '【接待細節】', id: 'reception_detail', type: 'textarea', placeholder: '例如：我會在 9:30 於ＯＯＯＯ等您，我會穿紅色背心並舉著您的名字。\n\n若是您自行開車，請由「XX路校門」進入，警衛室已通知... ' }
+                    ],
+                    template_function: (data) => `
+【最終行前通知】
+
+${data.speaker_name} 您好：
+
+明天就是 ${data.event_datetime} 的演講了，再次提醒您！
+
+【接待事宜】
+${data.reception_detail}
+
+附件是為您準備的「安心交通包」(含地圖與當日流程)，請您參考。
+我的手機是 ${data.contact_info}，明天路途上若有任何狀況，請隨時聯繫我。
+
+天氣轉涼，請老師多加件衣服，期待明天見！
+
+${data.contact_info} 敬上
+`,
+                    checklist_items: [
+                        { text: '已通知「警衛室」講者車號或資訊', done: false },
+                        { text: '已將「安心交通包」連同提醒信寄出', done: false }
+                    ],
+                    next_step_reminder: "明天就是演講日了！保持聯繫暢通。"
+                },
+                {
+                    id: 5,
+                    title: "演講當日 (D-Day)",
+                    status: 'pending',
+                    description: "D-Day! 展現貼心與專業，確保所有細節流暢。",
+                    tool_type: 'checklist',
+                    checklist_items: [
+                        { text: '專人於「校門口」或「約定點」親自引導 (勿讓講者迷路)', done: false },
+                        { text: '準備好「溫熱茶水」在講桌上 (文章一重點)', done: false },
+                        { text: '安排專人「側拍」(多拍幾張講者美照)', done: false },
+                        { text: '準備好「小禮物」或伴手禮', done: false },
+                        { text: '(若為教師研習) 提醒老師們往前坐', done: false }
+                    ],
+                    next_step_reminder: "演講辛苦了！別忘了「光速」回饋，展現完美收尾。"
+                },
+                {
+                    id: 6,
+                    title: "會後感謝 (當天完成)",
+                    status: 'pending',
+                    description: "「光速」回饋是專業的展現！ ",
+                    tool_type: 'form',
+                    form_fields: [
+                        { label: '講者姓名', id: 'speaker_name', type: 'text', placeholder: '某某某老師' },
+                        { label: '您的姓名', id: 'my_name', type: 'text', placeholder: '某某某' },
+                        { label: '一句印象深刻的話 (選填)', id: 'highlight', type: 'text', placeholder: '例如：特別是您提到「...」讓我們印象深刻' }
+                    ],
+                    template_function: (data) => `
+${data.speaker_name} 您好：
+
+非常感謝您今天蒞臨本校，帶來如此精彩的分享！
+${data.highlight}
+
+師生們的回饋都非常好 (附件為回饋表整理)，大家都收穫滿滿。
+
+附上今天活動的側拍照片，再次感謝老師的辛勞。
+鐘點費與交通費會計室已在處理中，預計下週匯入您的帳戶。
+
+期待未來還有機會向您學習！
+
+${data.my_name} 敬上
+`,
+                    checklist_items: [
+                        { text: '整理聽眾回饋表', done: false },
+                        { text: '挑選講者美照 (至少3-5張)', done: false },
+                        { text: '將「照片」與「回饋」E-mail 給講者', done: false },
+                        { text: '處理鐘點費/交通費核銷', done: false }
+                    ],
+                    next_step_reminder: "恭喜！您完美地完成了一場演講！"
+                }
+            ];
+
+            let currentStepId = 1;
+
+            // DOM 元素
+            const stepperContainer = document.getElementById('stepper-container');
+            const stepContentWrapper = document.getElementById('step-content-wrapper');
+            const stepTitle = document.getElementById('step-title');
+            const stepDescription = document.getElementById('step-description');
+            const toolArea = document.getElementById('tool-area');
+            const templateOutputArea = document.getElementById('template-output-area');
+            const templateOutput = document.getElementById('template-output');
+            const copyButton = document.getElementById('copy-button');
+            const nextStepReminderBox = document.getElementById('next-step-reminder-box');
+            const nextStepReminder = document.getElementById('next-step-reminder');
+            const generateBtn = document.getElementById('generate-btn');
+            const completeBtn = document.getElementById('complete-btn');
+            const copySuccessMsg = document.getElementById('copy-success-msg');
+            const clipboardTemp = document.getElementById('clipboard-temp');
+
+            // =================================================================
+            // 渲染函式
+            // =================================================================
+
+            /** 渲染左側SOP時間軸 */
+            function renderStepper() {
+                stepperContainer.innerHTML = '';
+                steps.forEach(step => {
+                    let statusClass = '';
+                    let icon = '';
+
+                    if (step.status === 'completed') {
+                        statusClass = 'completed text-blue-600';
+                        icon = `<svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`;
+                    } else if (step.status === 'active') {
+                        statusClass = 'active text-blue-600 font-bold';
+                        icon = `<svg class="w-5 h-5 animate-pulse" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd" /></svg>`;
+                    } else { // pending
+                        statusClass = 'pending text-gray-500';
+                        icon = `<svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" /></svg>`;
+                    }
+
+                    const li = document.createElement('li');
+                    li.className = `stepper-item relative flex items-center space-x-4 cursor-pointer ${statusClass}`;
+                    li.dataset.stepId = step.id;
+                    li.innerHTML = `
+                        <div class="flex-shrink-0 w-10 h-10 rounded-full ${step.status === 'completed' ? 'bg-blue-600' : (step.status === 'active' ? 'bg-blue-100' : 'bg-gray-300')} flex items-center justify-center ${step.status === 'active' ? 'ring-4 ring-blue-200' : ''}">
+                            ${icon}
+                        </div>
+                        <span class="text-sm md:text-base">${step.title}</span>
+                    `;
+                    stepperContainer.appendChild(li);
+                });
+            }
+
+            /** 渲染右側內容區域 */
+            function renderStepContent(stepId) {
+                const step = steps.find(s => s.id === stepId);
+                if (!step) return;
+
+                // 更新狀態
+                currentStepId = stepId;
+                steps.forEach(s => {
+                    if (s.id === stepId) s.status = 'active';
+                    else if (s.id < stepId) s.status = 'completed';
+                    else s.status = 'pending';
+                });
+
+                // 重繪SOP
+                renderStepper();
+
+                // 填入內容
+                stepTitle.textContent = `Step ${step.id}: ${step.title}`;
+                stepDescription.textContent = step.description;
+                nextStepReminder.textContent = step.next_step_reminder;
+
+                // 隱藏範本輸出
+                templateOutputArea.classList.add('hidden');
+                templateOutput.value = '';
+
+                // 渲染工具區域
+                toolArea.innerHTML = '';
+                if (step.tool_type === 'form') {
+                    renderForm(step);
+                    generateBtn.classList.remove('hidden');
+                } else {
+                    generateBtn.classList.add('hidden');
+                }
+
+                if (step.tool_type === 'checklist' || (step.checklist_items && step.tool_type === 'form')) {
+                     // Handle steps that are *only* checklists,
+                     // or steps (like 2 & 3) that are forms *with* checklists.
+                    renderChecklist(step);
+                }
+
+                // 更新按鈕狀態
+                if (step.id === steps.length) {
+                    completeBtn.textContent = '完成所有SOP';
+                } else {
+                    completeBtn.textContent = '完成本階段';
+                }
+            }
+
+            /** 渲染表單 (Form) */
+            function renderForm(step) {
+                const form = document.createElement('form');
+                form.id = 'step-form';
+                form.className = 'space-y-4';
+                
+                step.form_fields.forEach(field => {
+                    const fieldGroup = document.createElement('div');
+                    const label = document.createElement('label');
+                    label.htmlFor = field.id;
+                    label.className = 'block text-sm font-medium text-gray-700';
+                    label.textContent = field.label;
+                    
+                    let input;
+                    if (field.type === 'textarea') {
+                        input = document.createElement('textarea');
+                        input.rows = 4;
+                        input.placeholder = field.placeholder || '';
+                    } else {
+                        input = document.createElement('input');
+                        input.type = field.type;
+                        input.placeholder = field.placeholder || '';
+                    }
+                    input.id = field.id;
+                    input.name = field.id;
+                    input.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border';
+                    
+                    fieldGroup.appendChild(label);
+                    fieldGroup.appendChild(input);
+                    form.appendChild(fieldGroup);
+                });
+                toolArea.appendChild(form);
+            }
+
+            /** 渲染檢核表 (Checklist) */
+            function renderChecklist(step) {
+                if (!step.checklist_items || step.checklist_items.length === 0) return;
+
+                const checklistTitle = document.createElement('h4');
+                checklistTitle.className = 'text-md font-semibold text-gray-800 mb-3';
+                checklistTitle.textContent = '本階段檢核清單';
+                
+                const list = document.createElement('ul');
+                list.className = 'space-y-3';
+                
+                step.checklist_items.forEach((item, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'flex items-center';
+                    li.innerHTML = `
+                        <input id="item-${step.id}-${index}" type="checkbox" data-step-id="${step.id}" data-item-index="${index}" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" ${item.done ? 'checked' : ''}>
+                        <label for="item-${step.id}-${index}" class="ml-3 block text-sm text-gray-700 ${item.done ? 'line-through text-gray-500' : ''} cursor-pointer">
+                            ${item.text}
+                        </label>
+                    `;
+                    list.appendChild(li);
+                });
+                
+                // 根據 tool_type 決定插入位置
+                if (step.tool_type === 'checklist') {
+                    toolArea.appendChild(checklistTitle);
+                    toolArea.appendChild(list);
+                } else {
+                    // 如果是 form (例如 step 3)，插在 form 後面
+                    const divider = document.createElement('hr');
+                    divider.className = 'my-6';
+                    toolArea.appendChild(divider);
+                    toolArea.appendChild(checklistTitle);
+                    toolArea.appendChild(list);
+                }
+            }
+
+            // =================================================================
+            // 事件處理函式
+            // =================================================================
+
+            /** 點擊SOP時間軸 */
+            stepperContainer.addEventListener('click', (e) => {
+                const stepItem = e.target.closest('.stepper-item');
+                if (stepItem && stepItem.dataset.stepId) {
+                    const stepId = parseInt(stepItem.dataset.stepId);
+                    // 只允許跳轉到已完成或當前的步驟
+                    if (steps.find(s => s.id === stepId).status !== 'pending' || stepId === currentStepId) {
+                        renderStepContent(stepId);
+                    }
+                }
+            });
+
+            /** 點擊「生成範本」 */
+            generateBtn.addEventListener('click', () => {
+                const step = steps.find(s => s.id === currentStepId);
+                if (!step || step.tool_type !== 'form') return;
+
+                const form = document.getElementById('step-form');
+                const formData = new FormData(form);
+                const data = {};
+                step.form_fields.forEach(field => {
+                    data[field.id] = formData.get(field.id);
+                });
+
+                const template = step.template_function(data);
+                templateOutput.value = template;
+                templateOutputArea.classList.remove('hidden');
+
+                // 自動複製
+                copyToClipboard(template);
+            });
+
+            /** 點擊「再次複製」 */
+            copyButton.addEventListener('click', () => {
+                copyToClipboard(templateOutput.value);
+            });
+
+            /** 點擊「完成本階段」 */
+            completeBtn.addEventListener('click', () => {
+                const currentStep = steps.find(s => s.id === currentStepId);
+                currentStep.status = 'completed';
+
+                if (currentStepId < steps.length) {
+                    renderStepContent(currentStepId + 1);
+                    // 捲動到頂部
+                    stepContentWrapper.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    // 已是最後一步
+                    // 使用 custom modal 代替 alert
+                    const msg = document.createElement('div');
+                    msg.innerHTML = `
+                        <div class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50">
+                            <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm text-center">
+                                <h3 class="text-xl font-bold text-blue-600 mb-3">恭喜完成！</h3>
+                                <p class="text-gray-700">您已完美地完成所有演講籌備SOP！</p>
+                                <button onclick="this.closest('.fixed').remove()" class="mt-4 py-2 px-4 rounded-md shadow-sm text-sm font-medium bg-blue-600 text-white hover:bg-blue-700">
+                                    關閉
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(msg);
+                }
+            });
+
+            /** 點擊檢核表 */
+            toolArea.addEventListener('change', (e) => {
+                if (e.target.type === 'checkbox') {
+                    const stepId = parseInt(e.target.dataset.stepId);
+                    const itemIndex = parseInt(e.target.dataset.itemIndex);
+                    const step = steps.find(s => s.id === stepId);
+                    
+                    if (step && step.checklist_items[itemIndex]) {
+                        step.checklist_items[itemIndex].done = e.target.checked;
+                        // 重繪右側 (保持在當前步驟)
+                        renderStepContent(stepId);
+                    }
+                }
+            });
+
+            /** 複製到剪貼簿 */
+            function copyToClipboard(text) {
+                // 使用隱藏的textarea來執行execCommand
+                // 這是為了在 iframe 環境中（如Canvas）提高相容性
+                clipboardTemp.value = text;
+                clipboardTemp.style.display = 'block';
+                clipboardTemp.select();
+                try {
+                    document.execCommand('copy');
+                    showCopySuccess();
+                } catch (err) {
+                    console.error('無法複製文字: ', err);
+                }
+                clipboardTemp.style.display = 'none';
+            }
+
+            /** 顯示複製成功訊息 */
+            function showCopySuccess() {
+                copySuccessMsg.classList.remove('opacity-0');
+                setTimeout(() => {
+                    copySuccessMsg.classList.add('opacity-0');
+                }, 2000);
+            }
+
+            // =================================================================
+            // 初始化
+            // =================================================================
+            renderStepContent(currentStepId);
+
+        });
+    </script>
+</body>
+</html>
