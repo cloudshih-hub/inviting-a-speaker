@@ -181,7 +181,7 @@
                         { label: '演講長度', id: 'duration', type: 'text', placeholder: '例如：2小時 (含Q&A)' },
                         { label: '鐘點費', id: 'fee', type: 'text', placeholder: '例如：$2,000 / 小時' },
                         { label: '交通費', id: 'travel_fee', type: 'text', placeholder: '例如：實報實銷 (高鐵、計程車)' },
-                        { label: '您的聯繫方式', id: 'contact_info', type: 'text', placeholder: '例如：行政老師 0912-345-678 / (04)1234-5678 #123' }
+                        { label: '您的聯繫方式', id: 'contact_info', type: 'text', placeholder: '例如：ＯＯＯ老師 0912-345-678 / (04)1234-5678 #123' }
                     ],
                     template_function: (data) => `
 ${data.speaker_name} 您好：
@@ -233,7 +233,7 @@ ${data.contact_info} 敬上
                         { label: '演講地點', id: 'event_location', type: 'text', placeholder: '本校大禮堂' },
                         { label: '演講主題', id: 'topic', type: 'text', placeholder: '關於「閱讀與寫作」' },
                         { label: '聽眾組成與目標', id: 'audience_goal', type: 'textarea', placeholder: '例如：高一學生約300人，希望透過演講... ' },
-                        { label: '您的姓名與手機', id: 'contact_info', type: 'text', placeholder: '行政 0912-345-678' }
+                        { label: '您的姓名與手機', id: 'contact_info', type: 'text', placeholder: 'ＯＯＯ 0912-345-678' }
                     ],
                     template_function: (data) => `// Added
 ${data.speaker_name} 您好：
