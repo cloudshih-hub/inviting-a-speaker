@@ -1,723 +1,685 @@
 <!DOCTYPE html>
-<html lang="zh-Hant-TW">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>翻轉教育 衝突管理風格測驗</title>
-    <!-- 引入 Google Fonts Noto Sans TC -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- 引入 Chart.js 函式庫，用於繪製雷達圖 -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- 引入 html2canvas 函式庫，用於截圖下載 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" xintegrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoVBL5gI9kLmbG4dGGBLezZg+VwbQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <title>演講籌備智能SOP助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --brand-color: #004098;
-            --secondary-color: #4a90e2;
-            --background-color: #f8f9fa;
-            --card-background: #ffffff;
-            --text-color: #212529;
-            --light-text-color: #495057;
-            --border-color: #dee2e6;
-            --accent-color-1: #e6f4ea; /* 合作 */
-            --accent-color-2: #fff8e1; /* 妥協 */
-            --accent-color-3: #fbe9e7; /* 競爭 */
-            --accent-color-4: #e3f2fd; /* 迴避 */
-            --accent-color-5: #f3e5f5; /* 適應 */
-            --shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        }
-
-        html { scroll-behavior: smooth; }
-
         body {
-            font-family: 'Noto Sans TC', sans-serif;
-            background-color: var(--background-color);
-            margin: 0;
-            padding: 1rem;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            color: var(--text-color);
-            -webkit-font-smoothing: antialiased;
-            /* 移除 min-height: 100vh; 以允許內容決定高度 */
-            min-height: auto;
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
         }
-
-        .tool-container {
-            width: 100%;
-            max-width: 500px;
+        /* 保持tailwind的focus-visible樣式 */
+        :focus-visible {
+            outline: 2px solid theme('colors.blue.500');
+            outline-offset: 2px;
         }
-
-        .tool-card {
-            background-color: var(--card-background);
-            border-radius: 16px;
-            padding: 1.5rem 1.75rem;
-            box-shadow: var(--shadow);
-            border: 1px solid var(--border-color);
-            transition: opacity 0.5s ease, transform 0.5s ease;
-            margin-bottom: 1.5rem;
+        /* 自定義stepper的連線 */
+        .stepper-item:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 1.25rem; /* 10px / 4 = 2.5 (translate-x-1/2 of 20px) */
+            top: 2.5rem; /* 40px */
+            width: 2px;
+            height: calc(100% - 2.5rem);
+            background-color: theme('colors.gray.300');
+            z-index: -1;
         }
-
-        .hidden {
-            display: none;
+        .stepper-item.completed::after {
+            background-color: theme('colors.blue.600');
+        }
+        /* 隱藏的textarea用於複製 */
+        #clipboard-temp {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            width: 1px;
+            height: 1px;
             opacity: 0;
         }
-        .visible {
-            display: block;
-            opacity: 1;
-        }
-        
-        h1, h2, h3 { color: var(--brand-color); font-weight: 700; }
-        h1 { font-size: 1.75rem; text-align: center; margin: 0 0 0.5rem; }
-        h2 { font-size: 1.5rem; text-align: center; margin: 0 0 1.5rem; }
-        h3 { font-size: 1.2rem; margin: 0 0 0.75rem; border-left: 4px solid var(--secondary-color); padding-left: 0.75rem; }
-
-        p { line-height: 1.8; color: var(--light-text-color); }
-        .text-center { text-align: center; }
-
-        button {
-            font-family: 'Noto Sans TC', sans-serif;
-            font-size: 1.1rem;
-            font-weight: 700;
-            border: none;
-            border-radius: 12px;
-            padding: 0.8rem 1.5rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            width: 100%;
-            background-color: var(--brand-color);
-            color: white;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(0, 64, 152, 0.3);
-        }
-        button:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        
-        /* 更新下載按鈕樣式 */
-        #download-btn {
-            background-color: #e9ecef;
-            color: var(--brand-color);
-        }
-        #download-btn:hover {
-            box-shadow: 0 4px 10px rgba(0, 64, 152, 0.3);
-        }
-
-        /* 新增的資源連結樣式 */
-        .resource-link {
-            display: block;
-            margin-top: 1rem;
-            padding: 0.75rem 1rem;
-            background-color: #f0f4f7;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            color: var(--brand-color);
-            font-weight: 500;
-            text-decoration: none;
-            transition: all 0.2s ease;
-        }
-        .resource-link:hover {
-            background-color: #e6f0f7;
-            border-color: #d1e3f1;
-            transform: translateY(-2px);
-        }
-
-        /* --- Quiz Screen --- */
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background-color: #e9ecef;
-            border-radius: 4px;
-            margin-bottom: 1.5rem;
-            overflow: hidden;
-        }
-        #progress-indicator {
-            width: 0%;
-            height: 100%;
-            background-color: var(--secondary-color);
-            transition: width 0.3s ease;
-        }
-        .question-text {
-            font-size: 1.1rem;
-            font-weight: 500;
-            margin-bottom: 1.5rem;
-            text-align: left;
-        }
-        .options-container {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-        .option-label {
-            display: block;
-            background: #fff;
-            border: 2px solid var(--border-color);
-            border-radius: 12px;
-            padding: 1rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .option-label:hover {
-            border-color: var(--secondary-color);
-            background-color: #f8f9fa;
-        }
-        .option-label input { display: none; }
-        .option-label input:checked + span { font-weight: 700; color: var(--brand-color); }
-        .option-label input:checked + span::before {
-            border-color: var(--brand-color);
-            background-color: var(--brand-color);
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3e%3cpath d='M12.736 3.97a.75.75 0 0 1 1.047 1.078l-7.25 7.5a.75.75 0 0 1-1.065.027L2.22 8.354a.75.75 0 1 1 1.06-1.06l2.724 2.882L12.736 3.97z'/%3e%3c/svg%3e");
-        }
-        .option-label span {
-            display: flex;
-            align-items: center;
-            line-height: 1.6;
-        }
-        .option-label span::before {
-            content: "";
-            width: 1.25em;
-            height: 1.25em;
-            border: 2px solid var(--border-color);
-            border-radius: 50%;
-            margin-right: 0.75rem;
-            flex-shrink: 0;
-            transition: all 0.2s ease;
-        }
-        .quiz-nav { margin-top: 1.5rem; }
-
-        /* --- Results Screen --- */
-        #results-summary { text-align: center; margin-bottom: 2rem; }
-        #chart-container { margin: 1.5rem 0; }
-        .accordion-item {
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            margin-bottom: 0.75rem;
-            overflow: hidden;
-        }
-        .accordion-header {
-            padding: 1rem 1.25rem;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: 700;
-            font-size: 1.1rem;
-        }
-        .accordion-header::after {
-            content: '＋';
-            font-size: 1.5rem;
-            transition: transform 0.3s ease;
-        }
-        .accordion-item.active .accordion-header::after {
-            transform: rotate(45deg);
-        }
-        .accordion-content {
-            padding: 0 1.25rem 1.25rem;
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.4s ease-out, padding 0.4s ease-out;
-        }
-        .accordion-content p { margin-bottom: 0.5rem; }
-        .accordion-content strong { color: var(--text-color); }
-        .action-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-            margin-top: 1.5rem;
-        }
-        #restart-btn { background-color: #6c757d; }
-
-        /* Footer */
-        .brand-footer {
-            text-align: center; margin-top: 0; font-size: 0.9em; color: #adb5bd;
-        }
-        .brand-footer a { color: var(--brand-color); text-decoration: none; font-weight: 500; }
     </style>
 </head>
-<body>
-    <div class="tool-container">
-        <!-- Screen 1: Welcome -->
-        <div id="welcome-screen" class="tool-card visible">
-            <h1>我的衝突管理風格</h1>
-            <h2 style="font-size: 1.2rem; color: var(--light-text-color);">TKI 測驗與個人化建議</h2>
-            <p class="text-center">面對校園中的各種溝通挑戰，您習慣如何應對？<br>透過 10 個情境題，深入了解自己的衝突管理風格，找到最適合您的溝通策略。</p>
-            <button id="start-btn">開始測驗</button>
-        </div>
+<body class="bg-gray-100 text-gray-800 p-4 md:p-8">
 
-        <!-- Screen 2: Quiz -->
-        <div id="quiz-screen" class="tool-card hidden">
-            <div class="progress-bar"><div id="progress-indicator"></div></div>
-            <p id="question-number" style="text-align: right; color: var(--light-text-color); margin-bottom: 0.5rem;"></p>
-            <p id="question-text" class="question-text"></p>
-            <div id="options-container" class="options-container"></div>
-            <div class="quiz-nav">
-                <button id="next-btn" disabled>下一題</button>
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-8">
+            <!-- 標題與 LOGO 圖片 -->
+            <div class="flex items-center mb-2">
+                <img src="https://flipedu-cdn.parenting.com.tw/upload/jpCIZTR39ISqdNxEaVwfFBK17S3jxTqr5L6vWVTb.jpg" 
+                     alt="" 
+                     class="w-10 h-10 rounded-full mr-3 object-cover shadow-md"
+                     onerror="this.onerror=null;this.src='https://placehold.co/40x40/3B82F6/FFFFFF?text=SOP'">
+                <h1 class="text-3xl font-bold text-gray-900">演講籌備智能SOP助手</h1>
             </div>
-        </div>
+            <p class="text-lg text-gray-600 mt-2">結合SOP檢核與範本產生器，讓演講籌備工作萬無一失。</p>
+        </header>
 
-        <!-- Screen 3: Results -->
-        <div id="results-screen" class="tool-card hidden">
-            <div id="results-content-to-download">
-                <h1>測驗結果分析</h1>
-                <div id="results-summary"></div>
-                <div id="chart-container">
-                    <canvas id="results-chart"></canvas>
+        <div class="md:flex md:space-x-8">
+            <!-- 
+                ============================================================
+                左側：SOP 時間軸
+                ============================================================
+            -->
+            <nav class="md:w-1/3 lg:w-1/4 mb-8 md:mb-0">
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-xl font-semibold mb-6">SOP 進度</h2>
+                    <ol id="stepper-container" class="relative space-y-6">
+                        <!-- JS 動態載入步驟 -->
+                    </ol>
                 </div>
-                <h3>各風格深度解析</h3>
-                <div id="accordion-container"></div>
-            </div>
-            <div class="action-buttons">
-                <button id="download-btn">下載我的風格分析圖</button>
-                <button id="restart-btn">重新測驗</button>
+            </nav>
+
+            <!-- 
+                ============================================================
+                右側：步驟詳情 & 範本產生器
+                ============================================================
+            -->
+            <main id="step-content-wrapper" class="md:w-2/3 lg:w-3/4">
+                <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg min-h-[500px]">
+                    
+                    <!-- 步驟標題與描述 -->
+                    <div class="border-b border-gray-200 pb-4 mb-6">
+                        <h2 id="step-title" class="text-2xl font-bold text-blue-700"></h2>
+                        <p id="step-description" class="text-gray-600 mt-2"></p>
+                    </div>
+
+                    <!-- 智能工具區域 (表單或檢核表) -->
+                    <div id="tool-area">
+                        <!-- JS 動態載入表單或檢核表 -->
+                    </div>
+
+                    <!-- 產出範本區域 (預設隱藏) -->
+                    <div id="template-output-area" class="hidden mt-6">
+                        <label for="template-output" class="block text-sm font-semibold text-gray-700 mb-2">產出範本（已自動複製到剪貼簿）</label>
+                        <textarea id="template-output" rows="10" class="w-full p-3 bg-gray-50 rounded-md border border-gray-300 font-mono text-sm" readonly></textarea>
+                        <button id="copy-button" class="py-2 px-4 rounded-md shadow-sm text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mt-2">
+                            再次複製
+                        </button>
+                    </div>
+
+                    <!-- 下一步提醒 -->
+                    <div id="next-step-reminder-box" class="mt-8 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-md">
+                        <h4 class="font-semibold text-blue-800">下一步提醒</h4>
+                        <p id="next-step-reminder" class="text-blue-700 text-sm mt-1"></p>
+                    </div>
+
+                    <!-- 動作按鈕 -->
+                    <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end space-x-3">
+                        <button id="generate-btn" class="py-2 px-5 rounded-md shadow-sm text-sm font-medium bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 hidden">
+                            生成範本
+                        </button>
+                        <button id="complete-btn" class="py-2 px-5 rounded-md shadow-sm text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            完成本階段
+                        </button>
+                    </div>
+
+                </div>
+            </main>
+        </div>
+
+        <!-- 
+            ============================================================
+            延伸閱讀文章區塊 (新增)
+            ============================================================
+        -->
+        <div class="mt-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6 border-b border-gray-300 pb-2">延伸閱讀文章，了解更多細緻眉眉角角</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Article 1 -->
+                <a href="https://flipedu.parenting.com.tw/article/010311" target="_blank" class="block bg-white p-5 rounded-xl shadow-lg hover:shadow-xl transition duration-300 group">
+                    <h3 class="text-lg font-semibold text-blue-700 group-hover:text-blue-900 transition line-clamp-2">如何避免演講邀約地雷？常見狀況與講師SOP</h3>
+                    <p class="text-sm text-gray-500 mt-2">作者：羊羊老師（楊元安）</p>
+                    <span class="mt-3 inline-block text-xs text-blue-500 group-hover:underline">閱讀全文 &rarr;</span>
+                </a>
+                
+                <!-- Article 2 -->
+                <a href="https://flipedu.parenting.com.tw/article/009122" target="_blank" class="block bg-white p-5 rounded-xl shadow-lg hover:shadow-xl transition duration-300 group">
+                    <h3 class="text-lg font-semibold text-blue-700 group-hover:text-blue-900 transition line-clamp-2">講座邀約的行政眉角！講師和承辦人都皆大歡喜</h3>
+                    <p class="text-sm text-gray-500 mt-2">作者：蔡思怡</p>
+                    <span class="mt-3 inline-block text-xs text-blue-500 group-hover:underline">閱讀全文 &rarr;</span>
+                </a>
+                <!-- Article 3 -->
+                <a href="https://flipedu.parenting.com.tw/article/006359" target="_blank" class="block bg-white p-5 rounded-xl shadow-lg hover:shadow-xl transition duration-300 group">
+                    <h3 class="text-lg font-semibold text-blue-700 group-hover:text-blue-900 transition line-clamp-2">辦好一場演講也是素養：辦演講不能忽略的12個重點</h3>
+                    <p class="text-sm text-gray-500 mt-2">作者：蔡淇華</p>
+                    <span class="mt-3 inline-block text-xs text-blue-500 group-hover:underline">閱讀全文 &rarr;</span>
+                </a>
             </div>
         </div>
 
-        <footer class="brand-footer">
-            <p>由 <a href="https://flipedu.parenting.com.tw/" target="_blank" rel="noopener noreferrer">翻轉教育</a> 提供</p>
-        </footer>
+    </div> <!-- 結束 max-w-7xl mx-auto -->
+
+    <!-- 複製成功提示 -->
+    <div id="copy-success-msg" class="fixed top-5 right-5 bg-green-600 text-white py-3 px-5 rounded-lg shadow-xl transition-opacity duration-300 opacity-0" role="alert">
+        已成功複製到剪貼簿！
     </div>
 
+    <!-- 用於複製的隱藏textarea -->
+    <textarea id="clipboard-temp"></textarea>
+
     <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // --- 元素宣告 ---
-        const screens = {
-            welcome: document.getElementById('welcome-screen'),
-            quiz: document.getElementById('quiz-screen'),
-            results: document.getElementById('results-screen')
-        };
-        const buttons = {
-            start: document.getElementById('start-btn'),
-            next: document.getElementById('next-btn'),
-            download: document.getElementById('download-btn'),
-            restart: document.getElementById('restart-btn')
-        };
-        const quizElements = {
-            progress: document.getElementById('progress-indicator'),
-            qNumber: document.getElementById('question-number'),
-            qText: document.getElementById('question-text'),
-            options: document.getElementById('options-container')
-        };
-        const resultsElements = {
-            summary: document.getElementById('results-summary'),
-            chartCanvas: document.getElementById('results-chart'),
-            accordion: document.getElementById('accordion-container')
-        };
-        let myChart;
+        document.addEventListener('DOMContentLoaded', () => {
 
-        // --- 資料庫 ---
-        const styles = {
-            competing: '競爭型',
-            collaborating: '合作型',
-            compromising: '妥協型',
-            avoiding: '迴避型',
-            accommodating: '適應型'
-        };
+            // =================================================================
+            // 核心資料：SOP 步驟
+            // =================================================================
+            const steps = [
+                {
+                    id: 1,
+                    title: "撰寫熱情邀約信",
+                    status: 'active', // 'pending', 'active', 'completed'
+                    description: "好的開始是成功的一半。展現您的熱情與誠意，讓講師感受到「非您不可」的理由。",
+                    tool_type: 'form', // 'form' or 'checklist'
+                    form_fields: [
+                        { label: '講者姓名', id: 'speaker_name', type: 'text', placeholder: '例如：某某某 老師' },
+                        { label: '我方單位', id: 'unit_name', type: 'text', placeholder: '例如：XX國中 輔導室' },
+                        { label: '為何非您不可', id: 'why_you', type: 'textarea', placeholder: '請說明貴單位的困境、聽眾的樣貌... (文章一強調的「動心起念」)' },
+                        { label: '聽眾輪廓', id: 'audience', type: 'text', placeholder: '例如：國一學生，約300人' },
+                        { label: '建議演講主題', id: 'topic', type: 'text', placeholder: '例如：關於「閱讀與寫作」' },
+                        { label: '建議日期 (提供2-3個)', id: 'dates', type: 'text', placeholder: '例如：11/20(三) 10:00-12:00, 11/27(三) 10:00-12:00' },
+                        { label: '演講長度', id: 'duration', type: 'text', placeholder: '例如：2小時 (含Q&A)' },
+                        { label: '鐘點費', id: 'fee', type: 'text', placeholder: '例如：$2,000 / 小時' },
+                        { label: '交通費', id: 'travel_fee', type: 'text', placeholder: '例如：實報實銷 (高鐵、計程車)' },
+                        { label: '您的聯繫方式', id: 'contact_info', type: 'text', placeholder: '例如：行政老師 0912-345-678 / (04)1234-5678 #123' }
+                    ],
+                    template_function: (data) => `
+${data.speaker_name} 您好：
 
-        const questions = [
-            {
-                text: "當一位家長在聯絡簿上，強烈質疑您的評分標準時，您傾向...",
-                options: [
-                    { text: "堅持自己的專業判斷，並向家長清楚說明評分標準的公正性。", style: "competing" },
-                    { text: "邀請家長到校詳談，一起找出對孩子學習最有幫助的方式，並願意調整作法。", style: "collaborating" },
-                    { text: "同意在這次的成績上做些微調整，以安撫家長，但下次會將規則說得更清楚。", style: "compromising" },
-                    { text: "先不直接回應質疑，找時間與其他同事討論，看看大家通常如何處理。", style: "avoiding" },
-                    { text: "理解家長愛子心切，優先安撫家長情緒，表示會重新審視孩子的考卷。", style: "accommodating" }
-                ]
-            },
-            {
-                text: "班上兩位學生為了打掃工作分配不均而吵架，您介入時會...",
-                options: [
-                    { text: "直接做出裁決，明確劃分兩人的工作範圍，要求雙方遵守。", style: "competing" },
-                    { text: "花時間與兩位學生對談，引導他們說出各自的想法，共同找出一個兩人都滿意的分配方式。", style: "collaborating" },
-                    { text: "建議兩人各退一步，這次的工作一人一半，下次再換。", style: "compromising" },
-                    { text: "告訴他們先冷靜一下，這不是什麼大事，等情緒好了再說。", style: "avoiding" },
-                    { text: "先安撫情緒較激動的一方，答應會幫他多分擔一些工作，讓事情盡快平息。", style: "accommodating" }
-                ]
-            },
-            {
-                text: "在科任會議上，您和一位資深同事對於教學進度的看法不同，您會...",
-                options: [
-                    { text: "據理力爭，提出數據和案例來證明自己的方案更有效率。", style: "competing" },
-                    { text: "提議將兩種方案的優點結合，創造一個全新的、對雙方都有利的教學計畫。", style: "collaborating" },
-                    { text: "提出折衷方案，例如「上半學期照您的進度，下半學期試試我的方式」。", style: "compromising" },
-                    { text: "認為和諧比爭執重要，暫時不堅持己見，讓會議順利進行下去。", style: "avoiding" },
-                    { text: "尊重前輩的經驗，選擇支持同事的看法，並表示願意全力配合。", style: "accommodating" }
-                ]
-            },
-            {
-                text: "校慶活動分工繁重，有位同事明顯在推卸責任，您會...",
-                options: [
-                    { text: "直接找那位同事溝通，明確指出他需要完成的部分，要求他負起責任。", style: "competing" },
-                    { text: "找那位同事和其他組員一起開會，重新討論大家都能接受且公平的分工方式。", style: "collaborating" },
-                    { text: "自己多做一點，但也跟對方協商，請他至少幫忙完成其中最簡單的部分。", style: "compromising" },
-                    { text: "覺得不想為了這件事傷和氣，自己默默把事情做完就算了。", style: "avoiding" },
-                    { text: "擔心對方有難處，主動表示願意幫他分擔，希望團隊活動能順利。", style: "accommodating" }
-                ]
-            },
-            {
-                text: "學校推動一項新的行政要求，您認為不合理且會增加負擔，您會...",
-                options: [
-                    { text: "在會議上公開提出反對意見，並闡述這項要求可能帶來的負面影響。", style: "competing" },
-                    { text: "與其他同事討論，共同草擬一份替代方案，向行政單位提出，尋求雙贏。", style: "collaborating" },
-                    { text: "先試著做一部分，再跟主管反映執行上的困難，希望能減少一些工作量。", style: "compromising" },
-                    { text: "先觀望一下，看看其他人的反應，暫時不採取任何行動。", style: "avoiding" },
-                    { text: "雖然覺得不合理，但既然是規定，就還是盡力配合完成。", style: "accommodating" }
-                ]
-            },
-            {
-                text: "有學生上課屢次故意搗亂，影響課堂秩序，您會...",
-                options: [
-                    { text: "立即制止，並嚴格執行班規，給予明確的懲處，以儆效尤。", style: "competing" },
-                    { text: "課後找學生深談，試圖理解他行為背後的原因，並跟他一起想辦法解決他的困擾。", style: "collaborating" },
-                    { text: "跟學生約定，如果他有幾堂課能保持安靜，就給予獎勵作為交換。", style: "compromising" },
-                    { text: "有時候選擇暫時忽略他的小動作，只要不影響到主要教學流程就好。", style: "avoiding" },
-                    { text: "試著調整自己的上課方式，增加更多有趣的活動，希望能吸引他的注意力。", style: "accommodating" }
-                ]
-            },
-            {
-                text: "家長對您規劃的戶外教學地點有疑慮，認為不夠安全，您會...",
-                options: [
-                    { text: "拿出完整的安全評估報告，強調自己的專業規劃，請家長相信學校的安排。", style: "competing" },
-                    { text: "感謝家長的提醒，並邀請他加入籌備小組，一起勘查場地，完善安全計畫。", style: "collaborating" },
-                    { text: "為了讓大多數家長放心，更換到一個大家普遍認為更安全的備案地點。", style: "compromising" },
-                    { text: "在LINE群組中看到訊息，但想說等有更多人附和時再一起回覆。", style: "avoiding" },
-                    { text: "立刻向家長表示，既然他有疑慮，學校會優先考慮他的建議，並重新尋找地點。", style: "accommodating" }
-                ]
-            },
-            {
-                text: "您需要向學校申請一筆經費來充實班級圖書，但經費有限，您會...",
-                options: [
-                    { text: "盡力陳述班級閱讀的重要性，並與其他提案者競爭，力求爭取到全額經費。", style: "competing" },
-                    { text: "與其他也有需求的老師合作，提出一個可以資源共享的圖書計畫，讓總效益最大化。", style: "collaborating" },
-                    { text: "主動削減一些次要的書單，提出一個較低的經費需求，以提高過審的機會。", style: "compromising" },
-                    { text: "聽到經費很少，覺得申請過程太麻煩，可能就先暫緩這個計畫。", style: "avoiding" },
-                    { text: "看到其他老師比您更需要這筆錢，主動退出申請，把機會讓給別人。", style: "accommodating" }
-                ]
-            },
-            {
-                text: "一位同事經常向您抱怨工作，佔用您許多備課時間，您會...",
-                options: [
-                    { text: "直接告訴他：「不好意思，我現在需要專心備課，可能沒辦法聊這麼久。」", style: "competing" },
-                    { text: "同理他的辛苦，並提議：「不如我們約個午休時間，泡杯咖啡好好聊聊？」", style: "collaborating" },
-                    { text: "聽他說一會兒，然後找個藉口，例如「我得先去印個講義」，來縮短談話。", style: "compromising" },
-                    { text: "看到他走過來，就假裝很忙，戴上耳機，希望他不要來找你。", style: "avoiding" },
-                    { text: "覺得同事需要支持，放下手邊工作，專心聽他傾訴，即使自己的事會延後。", style: "accommodating" }
-                ]
-            },
-            {
-                text: "對於校慶佈置風格，您和其他老師的意見相左，您會...",
-                options: [
-                    { text: "堅持自己的美學和教育理念，並努力說服對方接受您的方案。", style: "competing" },
-                    { text: "提議一起上網找資料，融合雙方的想法，創造出一個獨一無二的全新風格。", style: "collaborating" },
-                    { text: "建議不同區域各自負責自己的區域，佈置成自己喜歡的樣子。", style: "compromising" },
-                    { text: "覺得這不是最重要的事，不想因此傷了和氣，就先不討論這個話題。", style: "avoiding" },
-                    { text: "認為和諧最重要，因此主動退讓，表示完全尊重搭班老師的想法。", style: "accommodating" }
-                ]
-            }
-        ];
+我們是 ${data.unit_name}。
 
-        const styleInfo = {
-            competing: {  
-                name: '競爭型 (貓頭鷹) 🦉',  
-                color: '#fbe9e7',
-                desc: '重視個人目標的達成，果斷且不畏懼對抗，像貓頭鷹一樣精準地朝目標前進。',
-                strength: '在需要快速決策、執行重要原則或保護學生權益時，這種風格非常有效率，能迅速穩定局面。',
-                blindspot: '在人際關係中，可能會因為過於堅持己見，而忽略他人感受，讓對方感到壓力或不被尊重。',
-                suggestion: '練習在堅持原則的同時，加入更多「我訊息」的表達，並適時傾聽對方的想法，讓決策更有溫度。',
-                resource: { text: '「我訊息」這樣用才不會變情勒！破解3大誤區', url: 'https://flipedu.parenting.com.tw/article/009595' }
-            },
-            collaborating: {  
-                name: '合作型 (海豚) 🐬',  
-                color: '#e3f2fd',
-                desc: '同時重視目標與關係，致力於尋找雙贏的創意解方，如同聰明合作的海豚，共創最大效益。',
-                strength: '能有效處理複雜問題，深化親師生間的信任感。透過整合多方觀點，能產出最有品質的決策。',
-                blindspot: '耗時耗力，並非所有衝突都值得投入如此高的心力。有時在小事上過度追求完美合作，反而會降低效率。',
-                suggestion: '學習判斷議題的重要性。將合作心力用在關鍵的、長期的議題上。在較緊急或次要的問題上，可嘗試「妥協」或「競爭」模式。',
-                resource: { text: '親師溝通100+提問集：多情境實用問題，建立信任與合作關係', url: 'https://flipedu.parenting.com.tw/teacher_resource/529' }
-            },
-            compromising: {  
-                name: '妥協型 (狐狸) 🦊',  
-                color: '#fff8e1',
-                desc: '願意各退一步，尋求快速且雙方都能接受的折衷方案，像狐狸一樣務實且靈活。',
-                strength: '處理中度重要的議題時非常有效率，能快速解決僵局，讓事情繼續前進，是維持團隊運作的潤滑劑。',
-                blindspot: '有時妥協的結果並非「最好」的方案，只是「最不差」的。長期下來，可能導致雙方都沒有真正滿意。',
-                suggestion: '在尋求妥協時，多問一句：「這個方案，我們雙方真的都能接受嗎？或只是暫時應付？」確保妥協的品質。',
-                resource: { text: '親師溝通問答集：聯絡簿&Line回應範本、家長疑難雜症QA', url: 'https://flipedu.parenting.com.tw/teacher_resource/240' }
-            },
-            avoiding: {  
-                name: '迴避型 (烏龜) 🐢',  
-                color: '#f3e5f5',
-                desc: '選擇暫時不處理衝突，將自己縮進殼裡，以降低緊張關係或爭取思考時間。',
-                strength: '面對無關緊要的小事，或在情緒高度緊張的當下，暫時迴避是冷卻局勢的智慧，能避免說出後悔的話。',
-                blindspot: '若長期迴避重要問題，問題不僅不會消失，還可能惡化，並可能讓他人覺得您不在乎或缺乏擔當。',
-                suggestion: '練習區分「策略性迴避」與「習慣性逃避」。若選擇迴避，可以告訴自己：「我只是『現在』不處理，等我準備好，我會回頭面對它。」',
-                resource: { text: '學生罵髒話怎麼辦？老師回應的4步驟3心法', url: 'https://flipedu.parenting.com.tw/article/007178' }
-            },
-            accommodating: {  
-                name: '適應型 (泰迪熊) 🐻',  
-                color: '#e6f4ea',
-                desc: '優先考慮對方需求與關係和諧，願意犧牲自己的目標，像溫暖的泰迪熊一樣，給予支持與安撫。',
-                strength: '當議題對對方遠比對自己重要時，或當您需要為關係「儲值」時，這是一種維持和諧的大度表現。',
-                blindspot: '長期忽略自身需求，可能會感到委屈或被利用。您的善意也可能被視為理所當然。',
-                suggestion: '在退讓的同時，練習溫和地表達自己的感受與底線。例如：「這次我可以配合你，但也希望下次能聽聽我的想法。」',
-                resource: { text: '壓力大不硬撐！6方法幫助老師不內耗，維持教學續航力', url: 'https://flipedu.parenting.com.tw/article/010088' }
-            }
-        };
+冒昧打擾，我們長期拜讀您的分享，對於您在「${data.topic}」領域的洞見深受啟發。
 
+【我們的動心起念】
+${data.why_you}
 
-        let currentQuestionIndex = 0;
-        let scores = { competing: 0, collaborating: 0, compromising: 0, avoiding: 0, accommodating: 0 };
+我們深信，以您豐富的經驗與觀點，必定能帶給我們的 ${data.audience} 莫大的啟發與幫助。
 
-        // --- Functions ---
-        // 新增：向父層傳送高度訊息的函式
-        function resizeIframe() {
-            // 確保 parent window 存在，以避免錯誤
-            if (window.parent) {
-                // 發送訊息，包含當前文件的滾動高度
-                window.parent.postMessage({
-                    height: document.body.scrollHeight,
-                    source: 'tki-generator-tool' // 自訂來源，用於識別
-                }, '*'); // * 表示傳送給任何來源
-            }
-        }
+因此，想誠摯邀請您擔任我們演講活動的分享嘉賓。
 
-        function switchScreen(hide, show) {
-            hide.classList.remove('visible');
-            hide.classList.add('hidden');
-            setTimeout(() => {
-                show.classList.remove('hidden');
-                show.classList.add('visible');
-                window.scrollTo(0, 0);
-                // 每次切換畫面後，通知父層更新 iframe 高度
-                resizeIframe();
-            }, 300);
-        }
+【活動資訊】
+・演講主題：${data.topic} (或由老師您建議)
+・演講對象：${data.audience}
+・演講長度：${data.duration}
+・演講地點：(線上 / 或 實體地點)
 
-        function loadQuestion() {
-            if (currentQuestionIndex >= questions.length) {
-                showResults();
-                return;
-            }
-            const q = questions[currentQuestionIndex];
-            quizElements.progress.style.width = `${(currentQuestionIndex / questions.length) * 100}%`;
-            quizElements.qNumber.textContent = `問題 ${currentQuestionIndex + 1} / ${questions.length}`;
-            quizElements.qText.textContent = q.text;
-            quizElements.options.innerHTML = '';
+【建議時間】
+以下是我們建議的幾個時段，不知您是否方便？
+・${data.dates.split(',')[0] || '日期一'}
+・${data.dates.split(',')[1] || '日期二'}
+・${data.dates.split(',')[2] || '日期三'}
+（若以上時間皆不便，也懇請老師提供您方便的時段）
 
-            q.options.forEach(option => {
-                const label = document.createElement('label');
-                label.className = 'option-label';
-                label.innerHTML = `
-                    <input type="radio" name="option" value="${option.style}">
-                    <span>${option.text}</span>
-                `;
-                quizElements.options.appendChild(label);
-            });
-            
-            // Add event listener to radio buttons
-            document.querySelectorAll('input[name="option"]').forEach(radio => {
-                radio.addEventListener('change', () => {
-                    buttons.next.disabled = false;
+【酬勞】
+・鐘點費：${data.fee}
+・交通費：${data.travel_fee}
+
+期待能有這個榮幸邀請到您，若您有任何問題，都歡迎隨時與我聯繫。
+
+${data.unit_name}
+${data.contact_info} 敬上
+`,
+                    next_step_reminder: "信件寄出後，等待講師回覆。確認後，請點選「完成本階段」，進入下一步驟。"
+                },
+                {
+                    id: 2,
+                    title: "講師確認後 (前 2-3 週)",
+                    status: 'pending',
+                    description: "講師已同意！現在我們需要敲定細節、索取資料，並展現行政專業度。",
+                    tool_type: 'form', // Changed
+                    form_fields: [ // Added
+                        { label: '講者姓名', id: 'speaker_name', type: 'text', placeholder: '例如：某某某 老師' },
+                        { label: '演講日期與時間', id: 'event_datetime', type: 'text', placeholder: '11/20(三) 10:00-12:00' },
+                        { label: '演講地點', id: 'event_location', type: 'text', placeholder: '本校大禮堂' },
+                        { label: '演講主題', id: 'topic', type: 'text', placeholder: '關於「閱讀與寫作」' },
+                        { label: '聽眾組成與目標', id: 'audience_goal', type: 'textarea', placeholder: '例如：高一學生約300人，希望透過演講... ' },
+                        { label: '您的姓名與手機', id: 'contact_info', type: 'text', placeholder: '行政 0912-345-678' }
+                    ],
+                    template_function: (data) => `// Added
+${data.speaker_name} 您好：
+
+再次感謝您先前答應我們的邀約！
+
+為讓我們後續行政流程更順暢，並提前準備好相關設備與文宣，想與您確認以下幾點資訊：
+
+1.  **活動確認**：
+    ・日期時間：${data.event_datetime}
+    ・演講地點：${data.event_location}
+    ・演講主題：${data.topic}
+
+2.  **聽眾與目標**：
+    ・${data.audience_goal}
+
+3.  **需請您協助提供**：
+    ・**公文需求**：請問您是否需要我們發送「公文」至您的服務單位？ 
+    ・**文宣資料**：是否方便提供您的「照片」與「簡介文字」，以利我們製作海報？
+    ・**簡報檔案**：請問您大約何時方便提供演講簡報檔？我們想提早測試影片、聲音與版本相容性。
+    ・**交通方式**：請問您當天預計的交通方式？
+        (若自行開車，需請您提供車牌號碼 ____，以利校門口警衛室登錄)
+        (若搭乘大眾運輸，我們將與您確認抵達時間與接送點)
+
+不好意思問題有點多，再次感謝您的協助！
+若有任何問題，歡迎隨時聯繫我。
+
+${data.contact_info} 敬上
+`,
+                    checklist_items: [
+                        { text: '【重要】主動詢問講者是否需要「發公文」 ', done: false },
+                        { text: '索取講師「照片」與「簡介」(用於製作海報/文宣)', done: false },
+                        { text: '索取「演講簡報檔」(提早測試版本、影片、字型)', done: false },
+                        { text: '確認最終交通方式 (高鐵/開車)與抵達時間，若為開車記得索取車牌號碼', done: false },
+                        { text: '向講者說明「聽眾組成」與「本次預期目標」 ', done: false }
+                    ],
+                    next_step_reminder: "信件寄出並收到講師回覆後，請完成上方檢核。都拿到資料後，就可以點選「完成本階段」，準備場地和文宣了。"
+                },
+                {
+                    id: 3,
+                    title: "行前準備 (前 1 週)",
+                    status: 'pending',
+                    description: "演講即將到來，開始進行場地和設備的最終測試，並發送第一次行前通知。",
+                    tool_type: 'form',
+                    form_fields: [
+                        { label: '講者姓名', id: 'speaker_name', type: 'text', placeholder: '某某某老師' },
+                        { label: '演講日期與時間', id: 'event_datetime', type: 'text', placeholder: '11/20(三) 10:00-12:00' },
+                        { label: '演講地點', id: 'event_location', type: 'text', placeholder: '本校大禮堂' },
+                        { label: '您的姓名與手機', id: 'contact_info', type: 'text', placeholder: '行政 0912-345-678' }
+                    ],
+                    template_function: (data) => `
+【第一次行前通知】
+
+${data.speaker_name} 您好：
+
+提醒您 ${data.event_datetime} 於 ${data.event_location} 的演講。
+目前海報文宣均已發出，師生們都非常期待！
+
+附件為當日流程表，再請您撥冗參閱。
+若有任何需要我們協助的地方，請隨時聯繫我。
+
+辛苦您了，期待當天的分享！
+
+${data.contact_info} 敬上
+`,
+                    checklist_items: [
+                        { text: '【設備】測試簡報檔 (版本、影片、聲音)', done: false },
+                        { text: '【設備】確認麥克風 (含備用電池)', done: false },
+                        { text: '【設備】準備轉接頭 (for Mac)', done: false },
+                        { text: '【接待】製作「安心交通包」(含地圖/接送點/聯繫人)', done: false },
+                        { text: '【暖場】安排「暗樁」準備Q&A問題 ', done: false }
+                    ],
+                    next_step_reminder: "別忘了前一天要發送最終提醒信！完成檢核並寄出通知後，請點選「完成本階段」。"
+                },
+                {
+                    id: 4,
+                    title: "最終提醒 (前 1-2 天)",
+                    status: 'pending',
+                    description: "發送最後一次的提醒信，附上「安心交通包」，讓講者安心。",
+                    tool_type: 'form',
+                    form_fields: [
+                        { label: '講者姓名', id: 'speaker_name', type: 'text', placeholder: '某某某老師' },
+                        { label: '演講日期與時間', id: 'event_datetime', type: 'text', placeholder: '11/20(三) 10:00-12:00' },
+                        { label: '您的姓名與手機', id: 'contact_info', type: 'text', placeholder: '行政 0912-345-678' },
+                        { label: '【接待細節】', id: 'reception_detail', type: 'textarea', placeholder: '例如：我會在 9:30 於ＯＯＯＯ等您，我會穿紅色背心並舉著您的名字。\n\n若是您自行開車，請由「XX路校門」進入，警衛室已通知... ' }
+                    ],
+                    template_function: (data) => `
+【最終行前通知】
+
+${data.speaker_name} 您好：
+
+明天就是 ${data.event_datetime} 的演講了，再次提醒您！
+
+【接待事宜】
+${data.reception_detail}
+
+附件是為您準備的「安心交通包」(含地圖與當日流程)，請您參考。
+我的手機是 ${data.contact_info}，明天路途上若有任何狀況，請隨時聯繫我。
+
+天氣轉涼，請老師多加件衣服，期待明天見！
+
+${data.contact_info} 敬上
+`,
+                    checklist_items: [
+                        { text: '已通知「警衛室」講者車號或資訊', done: false },
+                        { text: '已將「安心交通包」連同提醒信寄出', done: false }
+                    ],
+                    next_step_reminder: "明天就是演講日了！保持聯繫暢通。"
+                },
+                {
+                    id: 5,
+                    title: "演講當日 (D-Day)",
+                    status: 'pending',
+                    description: "D-Day! 展現貼心與專業，確保所有細節流暢。",
+                    tool_type: 'checklist',
+                    checklist_items: [
+                        { text: '專人於「校門口」或「約定點」親自引導 (勿讓講者迷路)', done: false },
+                        { text: '準備好「溫熱茶水」在講桌上 (文章一重點)', done: false },
+                        { text: '安排專人「側拍」(多拍幾張講者美照)', done: false },
+                        { text: '準備好「小禮物」或伴手禮', done: false },
+                        { text: '(若為教師研習) 提醒老師們往前坐', done: false }
+                    ],
+                    next_step_reminder: "演講辛苦了！別忘了「光速」回饋，展現完美收尾。"
+                },
+                {
+                    id: 6,
+                    title: "會後感謝 (當天完成)",
+                    status: 'pending',
+                    description: "「光速」回饋是專業的展現！ ",
+                    tool_type: 'form',
+                    form_fields: [
+                        { label: '講者姓名', id: 'speaker_name', type: 'text', placeholder: '某某某老師' },
+                        { label: '您的姓名', id: 'my_name', type: 'text', placeholder: '某某某' },
+                        { label: '一句印象深刻的話 (選填)', id: 'highlight', type: 'text', placeholder: '例如：特別是您提到「...」讓我們印象深刻' }
+                    ],
+                    template_function: (data) => `
+${data.speaker_name} 您好：
+
+非常感謝您今天蒞臨本校，帶來如此精彩的分享！
+${data.highlight}
+
+師生們的回饋都非常好 (附件為回饋表整理)，大家都收穫滿滿。
+
+附上今天活動的側拍照片，再次感謝老師的辛勞。
+鐘點費與交通費會計室已在處理中，預計下週匯入您的帳戶。
+
+期待未來還有機會向您學習！
+
+${data.my_name} 敬上
+`,
+                    checklist_items: [
+                        { text: '整理聽眾回饋表', done: false },
+                        { text: '挑選講者美照 (至少3-5張)', done: false },
+                        { text: '將「照片」與「回饋」E-mail 給講者', done: false },
+                        { text: '處理鐘點費/交通費核銷', done: false }
+                    ],
+                    next_step_reminder: "恭喜！您完美地完成了一場演講！"
+                }
+            ];
+
+            let currentStepId = 1;
+
+            // DOM 元素
+            const stepperContainer = document.getElementById('stepper-container');
+            const stepContentWrapper = document.getElementById('step-content-wrapper');
+            const stepTitle = document.getElementById('step-title');
+            const stepDescription = document.getElementById('step-description');
+            const toolArea = document.getElementById('tool-area');
+            const templateOutputArea = document.getElementById('template-output-area');
+            const templateOutput = document.getElementById('template-output');
+            const copyButton = document.getElementById('copy-button');
+            const nextStepReminderBox = document.getElementById('next-step-reminder-box');
+            const nextStepReminder = document.getElementById('next-step-reminder');
+            const generateBtn = document.getElementById('generate-btn');
+            const completeBtn = document.getElementById('complete-btn');
+            const copySuccessMsg = document.getElementById('copy-success-msg');
+            const clipboardTemp = document.getElementById('clipboard-temp');
+
+            // =================================================================
+            // 渲染函式
+            // =================================================================
+
+            /** 渲染左側SOP時間軸 */
+            function renderStepper() {
+                stepperContainer.innerHTML = '';
+                steps.forEach(step => {
+                    let statusClass = '';
+                    let icon = '';
+
+                    if (step.status === 'completed') {
+                        statusClass = 'completed text-blue-600';
+                        icon = `<svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`;
+                    } else if (step.status === 'active') {
+                        statusClass = 'active text-blue-600 font-bold';
+                        icon = `<svg class="w-5 h-5 animate-pulse" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd" /></svg>`;
+                    } else { // pending
+                        statusClass = 'pending text-gray-500';
+                        icon = `<svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" /></svg>`;
+                    }
+
+                    const li = document.createElement('li');
+                    li.className = `stepper-item relative flex items-center space-x-4 cursor-pointer ${statusClass}`;
+                    li.dataset.stepId = step.id;
+                    li.innerHTML = `
+                        <div class="flex-shrink-0 w-10 h-10 rounded-full ${step.status === 'completed' ? 'bg-blue-600' : (step.status === 'active' ? 'bg-blue-100' : 'bg-gray-300')} flex items-center justify-center ${step.status === 'active' ? 'ring-4 ring-blue-200' : ''}">
+                            ${icon}
+                        </div>
+                        <span class="text-sm md:text-base">${step.title}</span>
+                    `;
+                    stepperContainer.appendChild(li);
                 });
-            });
-            
-            buttons.next.disabled = true;
-            if(currentQuestionIndex === questions.length - 1) {
-                buttons.next.textContent = '完成測驗，查看結果';
-            } else {
-                buttons.next.textContent = '下一題';
-            }
-            // 載入新問題後，更新 iframe 高度
-            resizeIframe();
-        }
-
-        function showResults() {
-            quizElements.progress.style.width = '100%';
-            
-            // Get sorted results
-            const sortedScores = Object.entries(scores).sort(([,a],[,b]) => b-a);
-            const primaryStyle = sortedScores[0][0];
-            const secondaryStyle = sortedScores[1][0];
-
-            resultsElements.summary.innerHTML = `
-                <p>您的主要衝突管理風格是</p>
-                <h2 style="font-size: 2rem; margin-bottom: 0.5rem;">${styleInfo[primaryStyle].name}</h2>
-                <p>其次是 <strong>${styleInfo[secondaryStyle].name}</strong> 風格</p>
-                <p>這代表在面對衝突時，您最傾向於運用「${styles[primaryStyle]}」的策略來應對。以下是您的個人風格雷達圖與深度解析：</p>
-            `;
-
-            // Render Chart
-            renderChart();
-            
-            // Build Accordion
-            buildAccordion();
-            
-            switchScreen(screens.quiz, screens.results);
-        }
-
-        function renderChart() {
-            const ctx = resultsElements.chartCanvas.getContext('2d');
-            const data = {
-                labels: Object.values(styles),
-                datasets: [{
-                    label: '風格傾向分數',
-                    data: Object.values(scores),
-                    fill: true,
-                    backgroundColor: 'rgba(74, 144, 226, 0.2)',
-                    borderColor: 'rgb(74, 144, 226)',
-                    pointBackgroundColor: 'rgb(74, 144, 226)',
-                    pointBorderColor: '#fff',
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: 'rgb(74, 144, 226)'
-                }]
-            };
-
-            if (myChart) {
-                myChart.destroy();
             }
 
-            myChart = new Chart(ctx, {
-                type: 'radar',
-                data: data,
-                options: {
-                    elements: {
-                        line: {
-                            borderWidth: 3
-                        }
-                    },
-                    scales: {
-                        r: {
-                            angleLines: {
-                                display: false
-                            },
-                            suggestedMin: 0,
-                            suggestedMax: Math.max(...Object.values(scores), 4),
-                            pointLabels: {
-                                font: {
-                                    size: 14,
-                                    weight: 'bold'
-                                }
-                            },
-                            ticks: {
-                                stepSize: 1
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
+            /** 渲染右側內容區域 */
+            function renderStepContent(stepId) {
+                const step = steps.find(s => s.id === stepId);
+                if (!step) return;
+
+                // 更新狀態
+                currentStepId = stepId;
+                steps.forEach(s => {
+                    if (s.id === stepId) s.status = 'active';
+                    else if (s.id < stepId) s.status = 'completed';
+                    else s.status = 'pending';
+                });
+
+                // 重繪SOP
+                renderStepper();
+
+                // 填入內容
+                stepTitle.textContent = `Step ${step.id}: ${step.title}`;
+                stepDescription.textContent = step.description;
+                nextStepReminder.textContent = step.next_step_reminder;
+
+                // 隱藏範本輸出
+                templateOutputArea.classList.add('hidden');
+                templateOutput.value = '';
+
+                // 渲染工具區域
+                toolArea.innerHTML = '';
+                if (step.tool_type === 'form') {
+                    renderForm(step);
+                    generateBtn.classList.remove('hidden');
+                } else {
+                    generateBtn.classList.add('hidden');
+                }
+
+                if (step.tool_type === 'checklist' || (step.checklist_items && step.tool_type === 'form')) {
+                     // Handle steps that are *only* checklists,
+                     // or steps (like 2 & 3) that are forms *with* checklists.
+                    renderChecklist(step);
+                }
+
+                // 更新按鈕狀態
+                if (step.id === steps.length) {
+                    completeBtn.textContent = '完成所有SOP';
+                } else {
+                    completeBtn.textContent = '完成本階段';
+                }
+            }
+
+            /** 渲染表單 (Form) */
+            function renderForm(step) {
+                const form = document.createElement('form');
+                form.id = 'step-form';
+                form.className = 'space-y-4';
+                
+                step.form_fields.forEach(field => {
+                    const fieldGroup = document.createElement('div');
+                    const label = document.createElement('label');
+                    label.htmlFor = field.id;
+                    label.className = 'block text-sm font-medium text-gray-700';
+                    label.textContent = field.label;
+                    
+                    let input;
+                    if (field.type === 'textarea') {
+                        input = document.createElement('textarea');
+                        input.rows = 4;
+                        input.placeholder = field.placeholder || '';
+                    } else {
+                        input = document.createElement('input');
+                        input.type = field.type;
+                        input.placeholder = field.placeholder || '';
+                    }
+                    input.id = field.id;
+                    input.name = field.id;
+                    input.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border';
+                    
+                    fieldGroup.appendChild(label);
+                    fieldGroup.appendChild(input);
+                    form.appendChild(fieldGroup);
+                });
+                toolArea.appendChild(form);
+            }
+
+            /** 渲染檢核表 (Checklist) */
+            function renderChecklist(step) {
+                if (!step.checklist_items || step.checklist_items.length === 0) return;
+
+                const checklistTitle = document.createElement('h4');
+                checklistTitle.className = 'text-md font-semibold text-gray-800 mb-3';
+                checklistTitle.textContent = '本階段檢核清單';
+                
+                const list = document.createElement('ul');
+                list.className = 'space-y-3';
+                
+                step.checklist_items.forEach((item, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'flex items-center';
+                    li.innerHTML = `
+                        <input id="item-${step.id}-${index}" type="checkbox" data-step-id="${step.id}" data-item-index="${index}" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" ${item.done ? 'checked' : ''}>
+                        <label for="item-${step.id}-${index}" class="ml-3 block text-sm text-gray-700 ${item.done ? 'line-through text-gray-500' : ''} cursor-pointer">
+                            ${item.text}
+                        </label>
+                    `;
+                    list.appendChild(li);
+                });
+                
+                // 根據 tool_type 決定插入位置
+                if (step.tool_type === 'checklist') {
+                    toolArea.appendChild(checklistTitle);
+                    toolArea.appendChild(list);
+                } else {
+                    // 如果是 form (例如 step 3)，插在 form 後面
+                    const divider = document.createElement('hr');
+                    divider.className = 'my-6';
+                    toolArea.appendChild(divider);
+                    toolArea.appendChild(checklistTitle);
+                    toolArea.appendChild(list);
+                }
+            }
+
+            // =================================================================
+            // 事件處理函式
+            // =================================================================
+
+            /** 點擊SOP時間軸 */
+            stepperContainer.addEventListener('click', (e) => {
+                const stepItem = e.target.closest('.stepper-item');
+                if (stepItem && stepItem.dataset.stepId) {
+                    const stepId = parseInt(stepItem.dataset.stepId);
+                    // 只允許跳轉到已完成或當前的步驟
+                    if (steps.find(s => s.id === stepId).status !== 'pending' || stepId === currentStepId) {
+                        renderStepContent(stepId);
                     }
                 }
             });
-        }
 
-        function buildAccordion() {
-            resultsElements.accordion.innerHTML = '';
-            Object.keys(styleInfo).forEach(key => {
-                const info = styleInfo[key];
-                const item = document.createElement('div');
-                item.className = 'accordion-item';
-                item.innerHTML = `
-                    <div class="accordion-header" style="background-color: ${info.color};">
-                        ${info.name}
-                    </div>
-                    <div class="accordion-content">
-                        <p><strong>風格描述：</strong>${info.desc}</p>
-                        <p><strong>在教學現場的優勢：</strong>${info.strength}</p>
-                        <p><strong>需要留意的盲點：</strong>${info.blindspot}</p>
-                        <p><strong>給您的行動建議：</strong>${info.suggestion}</p>
-                        <a href="${info.resource.url}" target="_blank" class="resource-link">
-                            推薦閱讀：${info.resource.text}
-                        </a>
-                    </div>
-                `;
-                resultsElements.accordion.appendChild(item);
-            });
+            /** 點擊「生成範本」 */
+            generateBtn.addEventListener('click', () => {
+                const step = steps.find(s => s.id === currentStepId);
+                if (!step || step.tool_type !== 'form') return;
 
-            // Accordion functionality
-            document.querySelectorAll('.accordion-header').forEach(header => {
-                header.addEventListener('click', () => {
-                    const item = header.parentElement;
-                    const content = header.nextElementSibling;
-                    
-                    if (item.classList.contains('active')) {
-                        item.classList.remove('active');
-                        content.style.maxHeight = null;
-                    } else {
-                        // Close other items if you want only one open at a time
-                        // document.querySelectorAll('.accordion-item.active').forEach(activeItem => {
-                        //     activeItem.classList.remove('active');
-                        //     activeItem.querySelector('.accordion-content').style.maxHeight = null;
-                        // });
-                        item.classList.add('active');
-                        content.style.maxHeight = content.scrollHeight + "px";
-                    }
-                    // 每次開合選單時，更新 iframe 高度
-                    resizeIframe();
+                const form = document.getElementById('step-form');
+                const formData = new FormData(form);
+                const data = {};
+                step.form_fields.forEach(field => {
+                    data[field.id] = formData.get(field.id);
                 });
-            });
-        }
-        
-        // --- Event Listeners ---
-        buttons.start.addEventListener('click', () => {
-            currentQuestionIndex = 0;
-            scores = { competing: 0, collaborating: 0, compromising: 0, avoiding: 0, accommodating: 0 };
-            switchScreen(screens.welcome, screens.quiz);
-            loadQuestion();
-        });
 
-        buttons.next.addEventListener('click', () => {
-            const selected = document.querySelector('input[name="option"]:checked');
-            if (selected) {
-                scores[selected.value]++;
-                currentQuestionIndex++;
-                loadQuestion();
+                const template = step.template_function(data);
+                templateOutput.value = template;
+                templateOutputArea.classList.remove('hidden');
+
+                // 自動複製
+                copyToClipboard(template);
+            });
+
+            /** 點擊「再次複製」 */
+            copyButton.addEventListener('click', () => {
+                copyToClipboard(templateOutput.value);
+            });
+
+            /** 點擊「完成本階段」 */
+            completeBtn.addEventListener('click', () => {
+                const currentStep = steps.find(s => s.id === currentStepId);
+                currentStep.status = 'completed';
+
+                if (currentStepId < steps.length) {
+                    renderStepContent(currentStepId + 1);
+                    // 捲動到頂部
+                    stepContentWrapper.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    // 已是最後一步
+                    // 使用 custom modal 代替 alert
+                    const msg = document.createElement('div');
+                    msg.innerHTML = `
+                        <div class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50">
+                            <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm text-center">
+                                <h3 class="text-xl font-bold text-blue-600 mb-3">恭喜完成！</h3>
+                                <p class="text-gray-700">您已完美地完成所有演講籌備SOP！</p>
+                                <button onclick="this.closest('.fixed').remove()" class="mt-4 py-2 px-4 rounded-md shadow-sm text-sm font-medium bg-blue-600 text-white hover:bg-blue-700">
+                                    關閉
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(msg);
+                }
+            });
+
+            /** 點擊檢核表 */
+            toolArea.addEventListener('change', (e) => {
+                if (e.target.type === 'checkbox') {
+                    const stepId = parseInt(e.target.dataset.stepId);
+                    const itemIndex = parseInt(e.target.dataset.itemIndex);
+                    const step = steps.find(s => s.id === stepId);
+                    
+                    if (step && step.checklist_items[itemIndex]) {
+                        step.checklist_items[itemIndex].done = e.target.checked;
+                        // 重繪右側 (保持在當前步驟)
+                        renderStepContent(stepId);
+                    }
+                }
+            });
+
+            /** 複製到剪貼簿 */
+            function copyToClipboard(text) {
+                // 使用隱藏的textarea來執行execCommand
+                // 這是為了在 iframe 環境中（如Canvas）提高相容性
+                clipboardTemp.value = text;
+                clipboardTemp.style.display = 'block';
+                clipboardTemp.select();
+                try {
+                    document.execCommand('copy');
+                    showCopySuccess();
+                } catch (err) {
+                    console.error('無法複製文字: ', err);
+                }
+                clipboardTemp.style.display = 'none';
             }
-        });
-        
-        buttons.restart.addEventListener('click', () => {
-            currentQuestionIndex = 0;
-            scores = { competing: 0, collaborating: 0, compromising: 0, avoiding: 0, accommodating: 0 };
-            switchScreen(screens.results, screens.welcome);
-        });
 
-        buttons.download.addEventListener('click', () => {
-            const content = document.getElementById('results-content-to-download');
-            buttons.download.textContent = '圖片產生中...';
-            buttons.download.disabled = true;
+            /** 顯示複製成功訊息 */
+            function showCopySuccess() {
+                copySuccessMsg.classList.remove('opacity-0');
+                setTimeout(() => {
+                    copySuccessMsg.classList.add('opacity-0');
+                }, 2000);
+            }
 
-            html2canvas(content, {  
-                scale: 2,  
-                useCORS: true,
-                backgroundColor: getComputedStyle(document.body).backgroundColor
-            }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = '翻轉教育_我的衝突管理風格分析.png';
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-            }).catch(err => {
-                console.error("下載失敗:", err);
-                alert("圖片產生失敗，請稍後再試。");
-            }).finally(() => {
-                buttons.download.textContent = '下載我的風格分析圖';
-                buttons.download.disabled = false;
-            });
+            // =================================================================
+            // 初始化
+            // =================================================================
+            renderStepContent(currentStepId);
+
         });
-
-        // 頁面載入時，立即發送高度訊息
-        window.onload = resizeIframe;
-        // 監聽視窗大小變化，動態調整 iframe 高度
-        window.addEventListener('resize', resizeIframe);
-    });
     </script>
 </body>
 </html>
