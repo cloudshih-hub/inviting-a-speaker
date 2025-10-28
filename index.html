@@ -3,9 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>研習講師邀請智能SOP</title>
+    <title>演講籌備智能SOP助手</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 引入 Firebase 相關模組 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // 將 Firebase 模組掛載到 window 方便在 DOMContentLoaded 中使用
+        window.firebase = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence };
+        window.firestore = { getFirestore, doc, getDoc, setDoc, setLogLevel };
+    </script>
     <style>
         body {
             font-family: 'Inter', 'Noto Sans TC', sans-serif;
@@ -64,6 +74,7 @@
             <nav class="md:w-1/3 lg:w-1/4 mb-8 md:mb-0">
                 <div class="bg-white p-6 rounded-xl shadow-lg">
                     <h2 class="text-xl font-semibold mb-6">SOP 進度</h2>
+                    <p id="auth-status" class="text-xs text-gray-500 mb-4">連線中...</p>
                     <ol id="stepper-container" class="relative space-y-6">
                         <!-- JS 動態載入步驟 -->
                     </ol>
@@ -76,6 +87,13 @@
                 ============================================================
             -->
             <main id="step-content-wrapper" class="md:w-2/3 lg:w-3/4">
+                <div id="loading-overlay" class="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center rounded-xl z-10 hidden">
+                    <div class="text-center">
+                        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+                        <p class="mt-3 text-blue-700 font-medium">載入或同步資料中...</p>
+                    </div>
+                </div>
+
                 <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg min-h-[500px]">
                     
                     <!-- 步驟標題與描述 -->
@@ -120,11 +138,11 @@
 
         <!-- 
             ============================================================
-            延伸閱讀文章區塊 (新增)
+            延伸閱讀文章區塊 
             ============================================================
         -->
         <div class="mt-12">
-            <h2 class="text-2xl font-bold text-gray-900 mb-6 border-b border-gray-300 pb-2">延伸閱讀文章，了解更多真實執行細節經驗</h2>
+            <h2 class="text-2xl font-bold text-gray-900 mb-6 border-b border-gray-300 pb-2">延伸閱讀文章，了解更多細緻眉眉角角</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <!-- Article 1 -->
                 <a href="https://flipedu.parenting.com.tw/article/010311" target="_blank" class="block bg-white p-5 rounded-xl shadow-lg hover:shadow-xl transition duration-300 group">
@@ -132,17 +150,16 @@
                     <p class="text-sm text-gray-500 mt-2">作者：羊羊老師（楊元安）</p>
                     <span class="mt-3 inline-block text-xs text-blue-500 group-hover:underline">閱讀全文 &rarr;</span>
                 </a>
-                
                 <!-- Article 2 -->
-                <a href="https://flipedu.parenting.com.tw/article/009122" target="_blank" class="block bg-white p-5 rounded-xl shadow-lg hover:shadow-xl transition duration-300 group">
-                    <h3 class="text-lg font-semibold text-blue-700 group-hover:text-blue-900 transition line-clamp-2">講座邀約的行政眉角！講師和承辦人都皆大歡喜</h3>
-                    <p class="text-sm text-gray-500 mt-2">作者：蔡思怡</p>
-                    <span class="mt-3 inline-block text-xs text-blue-500 group-hover:underline">閱讀全文 &rarr;</span>
-                </a>
-                <!-- Article 3 -->
                 <a href="https://flipedu.parenting.com.tw/article/006359" target="_blank" class="block bg-white p-5 rounded-xl shadow-lg hover:shadow-xl transition duration-300 group">
                     <h3 class="text-lg font-semibold text-blue-700 group-hover:text-blue-900 transition line-clamp-2">辦好一場演講也是素養：辦演講不能忽略的12個重點</h3>
                     <p class="text-sm text-gray-500 mt-2">作者：蔡淇華</p>
+                    <span class="mt-3 inline-block text-xs text-blue-500 group-hover:underline">閱讀全文 &rarr;</span>
+                </a>
+                <!-- Article 3 -->
+                <a href="https://flipedu.parenting.com.tw/article/009122" target="_blank" class="block bg-white p-5 rounded-xl shadow-lg hover:shadow-xl transition duration-300 group">
+                    <h3 class="text-lg font-semibold text-blue-700 group-hover:text-blue-900 transition line-clamp-2">講座邀約的行政眉角！講師和承辦人都皆大歡喜</h3>
+                    <p class="text-sm text-gray-500 mt-2">作者：蔡思怡</p>
                     <span class="mt-3 inline-block text-xs text-blue-500 group-hover:underline">閱讀全文 &rarr;</span>
                 </a>
             </div>
@@ -159,11 +176,32 @@
     <textarea id="clipboard-temp"></textarea>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        // 全域變數用於 Firebase
+        let app, db, auth;
+        let userId = null;
+        let sopDocRef = null;
 
+        // Utility for debouncing
+        function debounce(func, delay) {
+            let timeoutId;
+            return function(...args) {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => {
+                    func.apply(this, args);
+                }, delay);
+            };
+        }
+        
+        // =================================================================
+        // DOMContentLoaded 啟動區塊
+        // =================================================================
+
+        document.addEventListener('DOMContentLoaded', () => {
             // =================================================================
-            // 核心資料：SOP 步驟
+            // 核心數據與儲存邏輯 (已移入此範圍，確保作用域正確)
             // =================================================================
+            
+            // SOP 步驟的初始定義
             const steps = [
                 {
                     id: 1,
@@ -171,17 +209,18 @@
                     status: 'active', // 'pending', 'active', 'completed'
                     description: "好的開始是成功的一半。展現您的熱情與誠意，讓講師感受到「非您不可」的理由。",
                     tool_type: 'form', // 'form' or 'checklist'
+                    form_data: {}, // ADDED for persistence
                     form_fields: [
                         { label: '講者姓名', id: 'speaker_name', type: 'text', placeholder: '例如：某某某 老師' },
                         { label: '我方單位', id: 'unit_name', type: 'text', placeholder: '例如：XX國中 輔導室' },
-                        { label: '為何非您不可', id: 'why_you', type: 'textarea', placeholder: '請說明貴單位的困境、聽眾的樣貌⋯⋯，在哪個平台關注到老師的專業⋯⋯' },
+                        { label: '為何非您不可', id: 'why_you', type: 'textarea', placeholder: '請說明貴單位的困境、聽眾的樣貌... (文章一強調的「動心起念」)' },
                         { label: '聽眾輪廓', id: 'audience', type: 'text', placeholder: '例如：國一學生，約300人' },
                         { label: '建議演講主題', id: 'topic', type: 'text', placeholder: '例如：關於「閱讀與寫作」' },
                         { label: '建議日期 (提供2-3個)', id: 'dates', type: 'text', placeholder: '例如：11/20(三) 10:00-12:00, 11/27(三) 10:00-12:00' },
                         { label: '演講長度', id: 'duration', type: 'text', placeholder: '例如：2小時 (含Q&A)' },
                         { label: '鐘點費', id: 'fee', type: 'text', placeholder: '例如：$2,000 / 小時' },
                         { label: '交通費', id: 'travel_fee', type: 'text', placeholder: '例如：實報實銷 (高鐵、計程車)' },
-                        { label: '您的聯繫方式', id: 'contact_info', type: 'text', placeholder: '例如：ＯＯＯ老師 0912-345-678 / (04)1234-5678 #123' }
+                        { label: '您的聯繫方式', id: 'contact_info', type: 'text', placeholder: '例如：行政老師 0912-345-678 / (04)1234-5678 #123' }
                     ],
                     template_function: (data) => `
 ${data.speaker_name} 您好：
@@ -226,16 +265,17 @@ ${data.contact_info} 敬上
                     title: "講師確認後 (前 2-3 週)",
                     status: 'pending',
                     description: "講師已同意！現在我們需要敲定細節、索取資料，並展現行政專業度。",
-                    tool_type: 'form', // Changed
-                    form_fields: [ // Added
+                    tool_type: 'form', 
+                    form_data: {}, // ADDED for persistence
+                    form_fields: [ 
                         { label: '講者姓名', id: 'speaker_name', type: 'text', placeholder: '例如：某某某 老師' },
                         { label: '演講日期與時間', id: 'event_datetime', type: 'text', placeholder: '11/20(三) 10:00-12:00' },
                         { label: '演講地點', id: 'event_location', type: 'text', placeholder: '本校大禮堂' },
                         { label: '演講主題', id: 'topic', type: 'text', placeholder: '關於「閱讀與寫作」' },
                         { label: '聽眾組成與目標', id: 'audience_goal', type: 'textarea', placeholder: '例如：高一學生約300人，希望透過演講... ' },
-                        { label: '您的姓名與手機', id: 'contact_info', type: 'text', placeholder: 'ＯＯＯ 0912-345-678' }
+                        { label: '您的姓名與手機', id: 'contact_info', type: 'text', placeholder: '行政 0912-345-678' }
                     ],
-                    template_function: (data) => `// Added
+                    template_function: (data) => `
 ${data.speaker_name} 您好：
 
 再次感謝您先前答應我們的邀約！
@@ -278,6 +318,7 @@ ${data.contact_info} 敬上
                     status: 'pending',
                     description: "演講即將到來，開始進行場地和設備的最終測試，並發送第一次行前通知。",
                     tool_type: 'form',
+                    form_data: {}, // ADDED for persistence
                     form_fields: [
                         { label: '講者姓名', id: 'speaker_name', type: 'text', placeholder: '某某某老師' },
                         { label: '演講日期與時間', id: 'event_datetime', type: 'text', placeholder: '11/20(三) 10:00-12:00' },
@@ -314,6 +355,7 @@ ${data.contact_info} 敬上
                     status: 'pending',
                     description: "發送最後一次的提醒信，附上「安心交通包」，讓講者安心。",
                     tool_type: 'form',
+                    form_data: {}, // ADDED for persistence
                     form_fields: [
                         { label: '講者姓名', id: 'speaker_name', type: 'text', placeholder: '某某某老師' },
                         { label: '演講日期與時間', id: 'event_datetime', type: 'text', placeholder: '11/20(三) 10:00-12:00' },
@@ -349,9 +391,10 @@ ${data.contact_info} 敬上
                     status: 'pending',
                     description: "D-Day! 展現貼心與專業，確保所有細節流暢。",
                     tool_type: 'checklist',
+                    form_data: {}, // ADDED for consistency
                     checklist_items: [
                         { text: '專人於「校門口」或「約定點」親自引導 (勿讓講者迷路)', done: false },
-                        { text: '準備好「溫熱茶水」在講桌上', done: false },
+                        { text: '準備好「溫熱茶水」在講桌上 (文章一重點)', done: false },
                         { text: '安排專人「側拍」(多拍幾張講者美照)', done: false },
                         { text: '準備好「小禮物」或伴手禮', done: false },
                         { text: '(若為教師研習) 提醒老師們往前坐', done: false }
@@ -364,6 +407,7 @@ ${data.contact_info} 敬上
                     status: 'pending',
                     description: "「光速」回饋是專業的展現！ ",
                     tool_type: 'form',
+                    form_data: {}, // ADDED for persistence
                     form_fields: [
                         { label: '講者姓名', id: 'speaker_name', type: 'text', placeholder: '某某某老師' },
                         { label: '您的姓名', id: 'my_name', type: 'text', placeholder: '某某某' },
@@ -395,7 +439,117 @@ ${data.my_name} 敬上
             ];
 
             let currentStepId = 1;
+            
+            // Debounce save by 1 second for continuous input
+            let debouncedSaveData = debounce(saveData, 1000); 
 
+            // =================================================================
+            // Firestore 讀寫函式
+            // =================================================================
+
+            /** 儲存資料到 Firestore */
+            async function saveData() {
+                if (!sopDocRef) {
+                    console.warn("Firestore 文件參考尚未準備好。跳過儲存。");
+                    return;
+                }
+                
+                // 提取需要儲存的資料結構
+                const dataToSave = steps.map(step => ({
+                    id: step.id,
+                    status: step.status,
+                    form_data: step.form_data || {},
+                    // 儲存 checklist 項目是否完成的布林值陣列
+                    checklist_data: step.checklist_items ? step.checklist_items.map(item => item.done) : undefined
+                }));
+
+                try {
+                    await window.firestore.setDoc(sopDocRef, { steps_data: dataToSave }, { merge: false });
+                    console.log("SOP 資料已成功儲存到 Firestore。");
+                } catch (error) {
+                    console.error("寫入文件時發生錯誤: ", error);
+                }
+            }
+
+            /** 從 Firestore 載入資料 */
+            async function loadData() {
+                const loadingOverlay = document.getElementById('loading-overlay');
+                loadingOverlay.classList.remove('hidden');
+
+                if (!sopDocRef) {
+                    console.warn("Firestore 文件參考尚未準備好，將使用預設步驟。");
+                    renderStepContent(currentStepId);
+                    loadingOverlay.classList.add('hidden');
+                    return;
+                }
+
+                try {
+                    const docSnap = await window.firestore.getDoc(sopDocRef);
+                    if (docSnap.exists()) {
+                        const loadedData = docSnap.data().steps_data;
+                        console.log("SOP 資料已從 Firestore 載入。", loadedData);
+                        
+                        // 將載入的資料合併回 steps 陣列
+                        loadedData.forEach(loadedStep => {
+                            const localStep = steps.find(s => s.id === loadedStep.id);
+                            if (localStep) {
+                                localStep.status = loadedStep.status;
+                                localStep.form_data = loadedStep.form_data || {};
+                                
+                                // 合併 checklist 狀態
+                                if (loadedStep.checklist_data && localStep.checklist_items) {
+                                    loadedStep.checklist_data.forEach((done, index) => {
+                                        if (localStep.checklist_items[index]) {
+                                            localStep.checklist_items[index].done = done;
+                                        }
+                                    });
+                                }
+                            }
+                        });
+
+                        // 尋找第一個 active 或 pending 的步驟作為目前的 currentStepId
+                        const activeStep = steps.find(s => s.status === 'active' || s.status === 'pending');
+                        currentStepId = activeStep ? activeStep.id : steps.length;
+                        
+                        // 確保已完成的步驟，其 status 為 completed
+                        steps.forEach(s => {
+                            if (s.id < currentStepId) s.status = 'completed';
+                            else if (s.id === currentStepId) s.status = 'active';
+                            else s.status = 'pending';
+                        });
+                    } else {
+                        console.log("未找到 SOP 資料，將使用預設步驟。");
+                    }
+                } catch (error) {
+                    console.error("讀取文件時發生錯誤: ", error);
+                }
+
+                // 載入完成後，渲染內容
+                renderStepContent(currentStepId);
+                loadingOverlay.classList.add('hidden');
+            }
+
+            /** 提取當前步驟的表單資料並更新到 steps 陣列 */
+            function updateStepFormData() {
+                const step = steps.find(s => s.id === currentStepId);
+                if (!step || step.tool_type !== 'form') return;
+
+                const form = document.getElementById('step-form');
+                if (!form) return;
+
+                const formData = new FormData(form);
+                const data = {};
+                step.form_fields.forEach(field => {
+                    data[field.id] = formData.get(field.id);
+                });
+                
+                step.form_data = data;
+            }
+
+            // =========================
+            // 渲染函式
+            // =========================
+            
             // DOM 元素
             const stepperContainer = document.getElementById('stepper-container');
             const stepContentWrapper = document.getElementById('step-content-wrapper');
@@ -405,16 +559,13 @@ ${data.my_name} 敬上
             const templateOutputArea = document.getElementById('template-output-area');
             const templateOutput = document.getElementById('template-output');
             const copyButton = document.getElementById('copy-button');
-            const nextStepReminderBox = document.getElementById('next-step-reminder-box');
             const nextStepReminder = document.getElementById('next-step-reminder');
             const generateBtn = document.getElementById('generate-btn');
             const completeBtn = document.getElementById('complete-btn');
             const copySuccessMsg = document.getElementById('copy-success-msg');
             const clipboardTemp = document.getElementById('clipboard-temp');
-
-            // =================================================================
-            // 渲染函式
-            // =================================================================
+            const authStatus = document.getElementById('auth-status');
+            
 
             /** 渲染左側SOP時間軸 */
             function renderStepper() {
@@ -452,7 +603,7 @@ ${data.my_name} 敬上
                 const step = steps.find(s => s.id === stepId);
                 if (!step) return;
 
-                // 更新狀態
+                // 1. 更新 local 狀態
                 currentStepId = stepId;
                 steps.forEach(s => {
                     if (s.id === stepId) s.status = 'active';
@@ -460,19 +611,19 @@ ${data.my_name} 敬上
                     else s.status = 'pending';
                 });
 
-                // 重繪SOP
+                // 2. 重繪SOP
                 renderStepper();
 
-                // 填入內容
+                // 3. 填入內容
                 stepTitle.textContent = `Step ${step.id}: ${step.title}`;
                 stepDescription.textContent = step.description;
                 nextStepReminder.textContent = step.next_step_reminder;
 
-                // 隱藏範本輸出
+                // 4. 隱藏範本輸出
                 templateOutputArea.classList.add('hidden');
                 templateOutput.value = '';
 
-                // 渲染工具區域
+                // 5. 渲染工具區域
                 toolArea.innerHTML = '';
                 if (step.tool_type === 'form') {
                     renderForm(step);
@@ -481,13 +632,11 @@ ${data.my_name} 敬上
                     generateBtn.classList.add('hidden');
                 }
 
-                if (step.tool_type === 'checklist' || (step.checklist_items && step.tool_type === 'form')) {
-                     // Handle steps that are *only* checklists,
-                     // or steps (like 2 & 3) that are forms *with* checklists.
+                if (step.checklist_items && step.checklist_items.length > 0) {
                     renderChecklist(step);
                 }
 
-                // 更新按鈕狀態
+                // 6. 更新按鈕狀態
                 if (step.id === steps.length) {
                     completeBtn.textContent = '完成所有SOP';
                 } else {
@@ -509,14 +658,18 @@ ${data.my_name} 敬上
                     label.textContent = field.label;
                     
                     let input;
+                    const savedValue = step.form_data[field.id] || ''; // 從儲存的資料中取得值
+
                     if (field.type === 'textarea') {
                         input = document.createElement('textarea');
                         input.rows = 4;
                         input.placeholder = field.placeholder || '';
+                        input.value = savedValue; // 設置儲存的值
                     } else {
                         input = document.createElement('input');
                         input.type = field.type;
                         input.placeholder = field.placeholder || '';
+                        input.value = savedValue; // 設置儲存的值
                     }
                     input.id = field.id;
                     input.name = field.id;
@@ -552,12 +705,10 @@ ${data.my_name} 敬上
                     list.appendChild(li);
                 });
                 
-                // 根據 tool_type 決定插入位置
-                if (step.tool_type === 'checklist') {
+                if (step.tool_type === 'checklist' && !step.form_fields) {
                     toolArea.appendChild(checklistTitle);
                     toolArea.appendChild(list);
                 } else {
-                    // 如果是 form (例如 step 3)，插在 form 後面
                     const divider = document.createElement('hr');
                     divider.className = 'my-6';
                     toolArea.appendChild(divider);
@@ -565,17 +716,90 @@ ${data.my_name} 敬上
                     toolArea.appendChild(list);
                 }
             }
+            
+            /** 範本產生邏輯 */
+            function generateTemplateOutput() {
+                const step = steps.find(s => s.id === currentStepId);
+                if (!step || step.tool_type !== 'form') return;
+
+                // 確保 local data 是最新的
+                updateStepFormData();
+
+                const data = step.form_data;
+                const template = step.template_function(data);
+                templateOutput.value = template;
+                templateOutputArea.classList.remove('hidden');
+
+                // 自動複製
+                copyToClipboard(template);
+            }
+
+
+            // =========================
+            // Firebase 初始化與認證
+            // =========================
+            async function initFirebase() {
+                authStatus.textContent = '連線中...';
+                
+                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+                try {
+                    // 1. 初始化 Firebase 服務
+                    app = window.firebase.initializeApp(firebaseConfig);
+                    db = window.firestore.getFirestore(app);
+                    auth = window.firebase.getAuth(app);
+                    window.firestore.setLogLevel('debug'); 
+
+                    // 2. 處理認證
+                    if (initialAuthToken) {
+                        await window.firebase.signInWithCustomToken(auth, initialAuthToken);
+                    } else {
+                        await window.firebase.signInAnonymously(auth);
+                    }
+
+                    // 3. 建立認證狀態監聽器
+                    window.firebase.onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            userId = user.uid;
+                            // 設定 Firestore 文件參考路徑：/artifacts/{appId}/users/{userId}/sop_data/master_sop_document
+                            sopDocRef = window.firestore.doc(db, `artifacts/${appId}/users/${userId}/sop_data`, 'master_sop_document');
+                            authStatus.textContent = `已連線 (使用者 ID: ${userId.substring(0, 4)}...)`;
+                            console.log(`User ID: ${userId}, App ID: ${appId}`);
+                            loadData(); // 認證完成後載入資料
+                        } else {
+                            authStatus.textContent = '未連線 (請重新整理)';
+                            console.error("Authentication failed or user signed out.");
+                            // 若認證失敗，仍載入本地預設資料
+                            renderStepContent(currentStepId);
+                            document.getElementById('loading-overlay').classList.add('hidden');
+                        }
+                    });
+
+                } catch (error) {
+                    console.error("Firebase Auth or Init error:", error);
+                    authStatus.textContent = '連線失敗';
+                    renderStepContent(currentStepId);
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                }
+            }
+
 
             // =================================================================
             // 事件處理函式
             // =================================================================
 
-            /** 點擊SOP時間軸 */
+            /** 點擊SOP時間軸 (切換步驟) */
             stepperContainer.addEventListener('click', (e) => {
                 const stepItem = e.target.closest('.stepper-item');
                 if (stepItem && stepItem.dataset.stepId) {
                     const stepId = parseInt(stepItem.dataset.stepId);
-                    // 只允許跳轉到已完成或當前的步驟
+                    // 1. 在切換前，先儲存目前步驟的表單資料
+                    updateStepFormData(); 
+                    debouncedSaveData();
+
+                    // 2. 只允許跳轉到已完成或當前的步驟
                     if (steps.find(s => s.id === stepId).status !== 'pending' || stepId === currentStepId) {
                         renderStepContent(stepId);
                     }
@@ -583,24 +807,7 @@ ${data.my_name} 敬上
             });
 
             /** 點擊「生成範本」 */
-            generateBtn.addEventListener('click', () => {
-                const step = steps.find(s => s.id === currentStepId);
-                if (!step || step.tool_type !== 'form') return;
-
-                const form = document.getElementById('step-form');
-                const formData = new FormData(form);
-                const data = {};
-                step.form_fields.forEach(field => {
-                    data[field.id] = formData.get(field.id);
-                });
-
-                const template = step.template_function(data);
-                templateOutput.value = template;
-                templateOutputArea.classList.remove('hidden');
-
-                // 自動複製
-                copyToClipboard(template);
-            });
+            generateBtn.addEventListener('click', generateTemplateOutput);
 
             /** 點擊「再次複製」 */
             copyButton.addEventListener('click', () => {
@@ -608,17 +815,22 @@ ${data.my_name} 敬上
             });
 
             /** 點擊「完成本階段」 */
-            completeBtn.addEventListener('click', () => {
+            completeBtn.addEventListener('click', async () => {
                 const currentStep = steps.find(s => s.id === currentStepId);
                 currentStep.status = 'completed';
+
+                // 1. 在換頁前，確保表單資料和狀態已更新
+                updateStepFormData();
+                
+                // 2. 立即儲存狀態變更
+                await saveData(); 
 
                 if (currentStepId < steps.length) {
                     renderStepContent(currentStepId + 1);
                     // 捲動到頂部
                     stepContentWrapper.scrollIntoView({ behavior: 'smooth' });
                 } else {
-                    // 已是最後一步
-                    // 使用 custom modal 代替 alert
+                    // 已是最後一步，使用 custom modal 代替 alert
                     const msg = document.createElement('div');
                     msg.innerHTML = `
                         <div class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50">
@@ -635,25 +847,42 @@ ${data.my_name} 敬上
                 }
             });
 
-            /** 點擊檢核表 */
+            /** 表單輸入監聽器 (用於 Debounce 儲存) */
+            toolArea.addEventListener('input', (e) => {
+                if (e.target.closest('#step-form')) {
+                    // 1. 更新 local data
+                    updateStepFormData();
+                    // 2. Debounced 儲存
+                    debouncedSaveData();
+                    
+                    // 3. 如果範本區域是開啟的，即時更新範本
+                    if (!templateOutputArea.classList.contains('hidden')) {
+                         generateTemplateOutput();
+                    }
+                }
+            });
+
+            /** 檢核表變更監聽器 (用於 Debounce 儲存和即時更新樣式) */
             toolArea.addEventListener('change', (e) => {
                 if (e.target.type === 'checkbox') {
                     const stepId = parseInt(e.target.dataset.stepId);
                     const itemIndex = parseInt(e.target.dataset.itemIndex);
                     const step = steps.find(s => s.id === stepId);
                     
-                    if (step && step.checklist_items[itemIndex]) {
+                    if (step && step.checklist_items && step.checklist_items[itemIndex]) {
                         step.checklist_items[itemIndex].done = e.target.checked;
-                        // 重繪右側 (保持在當前步驟)
-                        renderStepContent(stepId);
+                        
+                        // Debounced 儲存
+                        debouncedSaveData(); 
+                        
+                        // 重新渲染當前步驟以應用刪除線樣式
+                        renderStepContent(stepId); 
                     }
                 }
             });
 
             /** 複製到剪貼簿 */
             function copyToClipboard(text) {
-                // 使用隱藏的textarea來執行execCommand
-                // 這是為了在 iframe 環境中（如Canvas）提高相容性
                 clipboardTemp.value = text;
                 clipboardTemp.style.display = 'block';
                 clipboardTemp.select();
@@ -675,10 +904,9 @@ ${data.my_name} 敬上
             }
 
             // =================================================================
-            // 初始化
+            // 啟動點
             // =================================================================
-            renderStepContent(currentStepId);
-
+            initFirebase();
         });
     </script>
 </body>
