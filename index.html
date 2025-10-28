@@ -213,14 +213,14 @@
                     form_fields: [
                         { label: '講者姓名', id: 'speaker_name', type: 'text', placeholder: '例如：某某某 老師' },
                         { label: '我方單位', id: 'unit_name', type: 'text', placeholder: '例如：XX國中 輔導室' },
-                        { label: '為何非您不可', id: 'why_you', type: 'textarea', placeholder: '請說明貴單位的困境、聽眾的樣貌... (文章一強調的「動心起念」)' },
+                        { label: '為何非您不可', id: 'why_you', type: 'textarea', placeholder: '請說明貴單位的困境、聽眾的樣貌⋯⋯，在某某平台上關注到老師的⋯⋯)' },
                         { label: '聽眾輪廓', id: 'audience', type: 'text', placeholder: '例如：國一學生，約300人' },
                         { label: '建議演講主題', id: 'topic', type: 'text', placeholder: '例如：關於「閱讀與寫作」' },
                         { label: '建議日期 (提供2-3個)', id: 'dates', type: 'text', placeholder: '例如：11/20(三) 10:00-12:00, 11/27(三) 10:00-12:00' },
                         { label: '演講長度', id: 'duration', type: 'text', placeholder: '例如：2小時 (含Q&A)' },
                         { label: '鐘點費', id: 'fee', type: 'text', placeholder: '例如：$2,000 / 小時' },
                         { label: '交通費', id: 'travel_fee', type: 'text', placeholder: '例如：實報實銷 (高鐵、計程車)' },
-                        { label: '您的聯繫方式', id: 'contact_info', type: 'text', placeholder: '例如：行政老師 0912-345-678 / (04)1234-5678 #123' }
+                        { label: '您的聯繫方式', id: 'contact_info', type: 'text', placeholder: '例如：ＯＯＯ老師 0912-345-678 / (04)1234-5678 #123' }
                     ],
                     template_function: (data) => `
 ${data.speaker_name} 您好：
@@ -359,7 +359,7 @@ ${data.contact_info} 敬上
                     form_fields: [
                         { label: '講者姓名', id: 'speaker_name', type: 'text', placeholder: '某某某老師' },
                         { label: '演講日期與時間', id: 'event_datetime', type: 'text', placeholder: '11/20(三) 10:00-12:00' },
-                        { label: '您的姓名與手機', id: 'contact_info', type: 'text', placeholder: '行政 0912-345-678' },
+                        { label: '您的姓名與手機', id: 'contact_info', type: 'text', placeholder: '某某某 0912-345-678' },
                         { label: '【接待細節】', id: 'reception_detail', type: 'textarea', placeholder: '例如：我會在 9:30 於ＯＯＯＯ等您，我會穿紅色背心並舉著您的名字。\n\n若是您自行開車，請由「XX路校門」進入，警衛室已通知... ' }
                     ],
                     template_function: (data) => `
